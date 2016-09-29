@@ -3,6 +3,7 @@ package org.openlmis.notification.web;
 import org.apache.commons.codec.binary.Base64;
 import org.junit.runner.RunWith;
 import org.openlmis.notification.Application;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.SpringApplicationConfiguration;
 import org.springframework.boot.test.WebIntegrationTest;
 import org.springframework.http.HttpEntity;
@@ -20,6 +21,9 @@ import java.util.Map;
 public abstract class BaseWebIntegrationTest {
   static final String BASE_URL = System.getenv("BASE_URL");
 
+  @Value("${auth.server.url.getToken}")
+  protected String tokenUri;
+
   private String token = null;
 
   private String fetchToken() {
@@ -34,9 +38,9 @@ public abstract class BaseWebIntegrationTest {
     headers.add("Authorization", "Basic " + base64Creds);
 
     HttpEntity<String> request = new HttpEntity<>(headers);
+
     ResponseEntity<?> response = restTemplate.exchange(
-        "http://auth:8080/oauth/token?grant_type=password&username=admin&password=password",
-        HttpMethod.POST, request, Object.class);
+        tokenUri, HttpMethod.POST, request, Object.class);
 
     return ((Map<String, String>) response.getBody()).get("access_token");
   }
