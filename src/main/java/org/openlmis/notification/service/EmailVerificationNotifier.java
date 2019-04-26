@@ -29,7 +29,6 @@ import org.openlmis.notification.service.referencedata.UserDto;
 import org.openlmis.notification.service.referencedata.UserReferenceDataService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.i18n.LocaleContextHolder;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -54,7 +53,6 @@ public class EmailVerificationNotifier {
    * @param contactDetails the contactDetails whose email is being verified
    * @param emailAddress recipient's new email address
    */
-  @Async
   public void sendNotification(UserContactDetails contactDetails, String emailAddress) {
     EmailVerificationToken token = createToken(contactDetails, emailAddress);
     sendEmail(
