@@ -56,6 +56,7 @@ import com.jayway.restassured.response.Response;
 import com.jayway.restassured.specification.RequestSpecification;
 import guru.nidi.ramltester.core.RamlReport;
 import guru.nidi.ramltester.junit.RamlMatchers;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -543,7 +544,8 @@ public class UserContactDetailsControllerIntegrationTest extends BaseWebIntegrat
         .willReturn(token);
     willDoNothing()
         .given(emailVerificationNotifier)
-        .sendNotification(any(UserContactDetails.class), anyString());
+        .sendNotification(any(UserContactDetails.class), anyString(), 
+            any(Locale.class));
 
     startUserRequest()
         .pathParam(ID, userContactDetails.getId())
@@ -553,7 +555,8 @@ public class UserContactDetailsControllerIntegrationTest extends BaseWebIntegrat
         .statusCode(HttpStatus.OK.value());
 
     verify(emailVerificationNotifier)
-        .sendNotification(any(UserContactDetails.class), eq(token.getEmailAddress()));
+        .sendNotification(any(UserContactDetails.class), eq(token.getEmailAddress()), 
+            any(Locale.class));
 
     assertThat(RAML_ASSERT_MESSAGE, restAssured.getLastReport(), RamlMatchers.hasNoViolations());
   }

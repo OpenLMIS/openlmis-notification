@@ -43,6 +43,7 @@ import org.openlmis.notification.service.UserContactDetailsService;
 import org.openlmis.notification.web.NotFoundException;
 import org.openlmis.notification.web.ValidationException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -222,7 +223,8 @@ public class UserContactDetailsController {
       }
     }
 
-    emailVerificationNotifier.sendNotification(contactDetails, token.getEmailAddress());
+    emailVerificationNotifier.sendNotification(contactDetails, token.getEmailAddress(), 
+        LocaleContextHolder.getLocale());
   }
 
   /**

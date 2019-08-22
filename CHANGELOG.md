@@ -8,6 +8,7 @@ Improvements:
 
 Bug fixes, security and performance improvements (backwards-compatible):
 * [OLMIS-6078](https://openlmis.atlassian.net/browse/OLMIS-6078): Added user contact details for admin
+* [OLMIS-6527](https://openlmis.atlassian.net/browse/OLMIS-6527): Fixed bug with asynchronous sending notifications with wrong message localization.
 
 4.1.0 / 2019-05-27
 ==================

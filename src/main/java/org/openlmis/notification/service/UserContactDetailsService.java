@@ -21,6 +21,7 @@ import org.openlmis.notification.domain.UserContactDetails;
 import org.openlmis.notification.repository.EmailVerificationTokenRepository;
 import org.openlmis.notification.repository.UserContactDetailsRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -105,7 +106,8 @@ public class UserContactDetailsService {
   }
 
   private void sendVerificationEmail(UserContactDetails contactDetails, String emailAddress) {
-    emailVerificationNotifier.sendNotification(contactDetails, emailAddress);
+    emailVerificationNotifier.sendNotification(contactDetails, emailAddress, 
+        LocaleContextHolder.getLocale());
   }
 
 }

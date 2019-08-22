@@ -27,7 +27,6 @@ import org.openlmis.notification.repository.EmailVerificationTokenRepository;
 import org.openlmis.notification.service.referencedata.UserDto;
 import org.openlmis.notification.service.referencedata.UserReferenceDataService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -54,11 +53,10 @@ public class EmailVerificationNotifier {
    * @param emailAddress recipient's new email address
    */
   @Async
-  public void sendNotification(UserContactDetails contactDetails, String emailAddress) {
+  public void sendNotification(UserContactDetails contactDetails, String emailAddress, 
+      Locale locale) {
     EmailVerificationToken token = createToken(contactDetails, emailAddress);
-    sendEmail(
-        contactDetails, emailAddress, token
-    );
+    sendEmail(contactDetails, emailAddress, token, locale);
   }
 
   EmailVerificationToken createToken(UserContactDetails contactDetails,
@@ -87,7 +85,7 @@ public class EmailVerificationNotifier {
   }
 
   private void sendEmail(UserContactDetails contactDetails, String email,
-      EmailVerificationToken token) {
+      EmailVerificationToken token, Locale locale) {
     UserDto referenceDataUser = userReferenceDataService
         .findOne(contactDetails.getReferenceDataUserId());
 
@@ -97,8 +95,7 @@ public class EmailVerificationNotifier {
         getVerificationPath(contactDetails, token)
     };
     String[] subjectMsgArgs = {};
-
-    Locale locale = LocaleContextHolder.getLocale();
+    
     String subject = messageSource
         .getMessage(EMAIL_VERIFICATION_EMAIL_SUBJECT, subjectMsgArgs, locale);
     String body = messageSource
