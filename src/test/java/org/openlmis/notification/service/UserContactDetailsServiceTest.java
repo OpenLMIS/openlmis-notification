@@ -35,6 +35,7 @@ import org.openlmis.notification.repository.UserContactDetailsRepository;
 import org.openlmis.notification.testutils.EmailVerificationTokenDataBuilder;
 import org.openlmis.notification.util.EmailDetailsDataBuilder;
 import org.openlmis.notification.util.UserContactDetailsDataBuilder;
+import org.springframework.context.i18n.LocaleContextHolder;
 
 @RunWith(MockitoJUnitRunner.class)
 public class UserContactDetailsServiceTest {
@@ -69,7 +70,8 @@ public class UserContactDetailsServiceTest {
 
     verify(repository).save(contactDetails);
     verify(notifier)
-        .sendNotification(contactDetails, contactDetails.getEmailAddress());
+        .sendNotification(contactDetails, contactDetails.getEmailAddress(),
+            LocaleContextHolder.getLocale());
 
     assertThat(saved.isAllowNotify(), is(false));
     assertThat(saved.isEmailAddressVerified(), is(false));
@@ -108,7 +110,7 @@ public class UserContactDetailsServiceTest {
     contactDetails.getEmailDetails().setEmail(email);
 
     service.addOrUpdate(contactDetails);
-    verify(notifier).sendNotification(contactDetails, email);
+    verify(notifier).sendNotification(contactDetails, email, LocaleContextHolder.getLocale());
   }
 
   @Test
@@ -125,7 +127,7 @@ public class UserContactDetailsServiceTest {
     contactDetails.getEmailDetails().setEmail(email);
 
     service.addOrUpdate(contactDetails);
-    verify(notifier).sendNotification(contactDetails, email);
+    verify(notifier).sendNotification(contactDetails, email, LocaleContextHolder.getLocale());
   }
 
   @Test
@@ -139,7 +141,7 @@ public class UserContactDetailsServiceTest {
     contactDetails.getEmailDetails().setEmail(email);
 
     service.addOrUpdate(contactDetails);
-    verify(notifier).sendNotification(contactDetails, email);
+    verify(notifier).sendNotification(contactDetails, email, LocaleContextHolder.getLocale());
   }
 
   @Test

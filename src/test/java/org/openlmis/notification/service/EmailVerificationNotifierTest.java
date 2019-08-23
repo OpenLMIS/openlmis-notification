@@ -42,6 +42,7 @@ import org.openlmis.notification.service.referencedata.UserReferenceDataService;
 import org.openlmis.notification.testutils.SaveAnswer;
 import org.openlmis.notification.testutils.UserDataBuilder;
 import org.openlmis.notification.util.UserContactDetailsDataBuilder;
+import org.springframework.context.i18n.LocaleContextHolder;
 
 @RunWith(MockitoJUnitRunner.class)
 public class EmailVerificationNotifierTest {
@@ -103,7 +104,7 @@ public class EmailVerificationNotifierTest {
   @Test
   public void shouldSendNotification() {
     // when
-    notifier.sendNotification(userContactDetails, email);
+    notifier.sendNotification(userContactDetails, email, LocaleContextHolder.getLocale());
 
     // then
     verify(emailVerificationTokenRepository).save(tokenCaptor.capture());

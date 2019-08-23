@@ -1,3 +1,9 @@
+4.1.1 / 2019-08-23
+==================
+
+Bug fixes, security and performance improvements (backwards-compatible):
+* [OLMIS-6527](https://openlmis.atlassian.net/browse/OLMIS-6527): Fixed missing localization in email address verification notification.
+
 4.1.0 / 2019-05-27
 ==================
 
