@@ -27,6 +27,7 @@ import org.openlmis.notification.repository.EmailVerificationTokenRepository;
 import org.openlmis.notification.service.referencedata.UserDto;
 import org.openlmis.notification.service.referencedata.UserReferenceDataService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -45,6 +46,9 @@ public class EmailVerificationNotifier {
 
   @Autowired
   private UserReferenceDataService userReferenceDataService;
+  
+  @Value("${publicUrl}")
+  private String publicUrl;
 
   /**
    * Sends email verification notification.
@@ -106,7 +110,7 @@ public class EmailVerificationNotifier {
 
   private String getVerificationPath(UserContactDetails contactDetails,
       EmailVerificationToken token) {
-    return System.getenv("BASE_URL")
+    return publicUrl
         + "/api/userContactDetails/"
         + contactDetails.getId()
         + "/verifications/"
