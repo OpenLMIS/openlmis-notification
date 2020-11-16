@@ -1,5 +1,12 @@
+4.3.1 / 2020-11-16
+==================
+
+New functionality added in a backwards-compatible manner:
+* [OLMIS-6764](https://openlmis.atlassian.net/browse/OLMIS-6764): Update Spring Boot version to 2.x:
+  * Update Togglz API path.
+
 4.3.0 / 2020-04-14
-=================
+==================
 
 New functionality added in a backwards-compatible manner:
 * [OLMIS-6764](https://openlmis.atlassian.net/browse/OLMIS-6764): Update Spring Boot version to 2.x:
