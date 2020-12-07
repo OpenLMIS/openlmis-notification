@@ -1,3 +1,10 @@
+4.3.2 / WIMP
+==================
+
+Bug fix:
+* [OLMIS-6190](https://openlmis.atlassian.net/browse/OLMIS-6190): Edited notification message content:
+  
+
 4.3.1 / 2020-11-16
 ==================
 
