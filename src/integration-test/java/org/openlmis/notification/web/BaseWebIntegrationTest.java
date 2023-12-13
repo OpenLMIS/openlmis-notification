@@ -57,7 +57,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 @SpringBootTest(
     properties = { "notificationToSend.autoStartup=false" },
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("test")
+@ActiveProfiles({"test", "test-run"})
 public abstract class BaseWebIntegrationTest {
   private static final String USER_ACCESS_TOKEN = "418c89c5-7f21-4cd1-a63a-38c47892b0fe";
   protected static final String USER_ACCESS_TOKEN_HEADER = "Bearer " + USER_ACCESS_TOKEN;
