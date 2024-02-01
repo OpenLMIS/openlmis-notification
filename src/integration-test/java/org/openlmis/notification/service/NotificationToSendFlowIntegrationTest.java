@@ -71,7 +71,7 @@ import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallbackWithoutResult;
 import org.springframework.transaction.support.TransactionTemplate;
 
-@ActiveProfiles("test")
+@ActiveProfiles({"test", "test-run"})
 @RunWith(SpringRunner.class)
 @SuppressWarnings("PMD.TooManyMethods")
 @SpringBootTest(properties = {"notificationToSend.autoStartup=false"})
