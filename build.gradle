@@ -40,7 +40,7 @@ dependencies {
     compile "com.sun.mail:jakarta.mail"
     compile "org.apache.commons:commons-lang3"
     compile "org.postgresql:postgresql:42.0.0"
-    compile "org.projectlombok:lombok:1.18.22"
+    compile "org.projectlombok:lombok"
     compile "org.slf4j:slf4j-ext"
     compile "org.springframework.boot:spring-boot-starter-data-jpa"
     compile "org.springframework.boot:spring-boot-starter-mail"
@@ -60,6 +60,8 @@ dependencies {
     compile 'org.openlmis:openlmis-service-util:3.0.0'
     compile 'org.webjars.npm:api-console:3.0.17'
 
+    annotationProcessor 'org.projectlombok:lombok:1.18.22'
+
     testCompile "be.joengenduvel.java.verifiers:to-string:1.0.2"
     testCompile "com.github.tomakehurst:wiremock:1.58"
     testCompile "com.jayway.restassured:rest-assured:2.7.0"
@@ -74,6 +76,8 @@ dependencies {
     testCompile 'io.rest-assured:rest-assured'
     testCompile 'io.rest-assured:spring-mock-mvc'
     testCompile 'org.awaitility:awaitility'
+
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.22'
 }
 
 idea {
@@ -111,6 +115,8 @@ sourceSets {
         java {
             compileClasspath += main.output + test.output
             runtimeClasspath += main.output + test.output
+            annotationProcessorPath += main.output + test.output
+            annotationProcessorPath += sourceSets.test.runtimeClasspath
             srcDir file('src/integration-test/java')
         }
         resources.srcDir file('src/integration-test/resources')
