@@ -1,3 +1,10 @@
+4.3.4 / WIP
+==================
+Improvements:
+* [OLMIS-7895](https://openlmis.atlassian.net/browse/OLMIS-7895): Add demo data for BUQ and TB Monthly
+* [OIS-14](https://openlmis.atlassian.net/browse/OIS-14): Upgrade Transifex API version
+* [OIS-48](https://openlmis.atlassian.net/browse/OIS-48): Update service base images to versions without known vulnerabilities
+
 4.3.3 / 2022-04-21
 ==================
 
