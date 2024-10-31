@@ -1,4 +1,4 @@
-4.3.4 / WIP
+4.3.4 / 31.10.2024
 ==================
 Improvements:
 * [OLMIS-7895](https://openlmis.atlassian.net/browse/OLMIS-7895): Add demo data for BUQ and TB Monthly
