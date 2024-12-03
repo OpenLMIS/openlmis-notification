@@ -1,6 +1,8 @@
 execution:
-  - concurrency: 1
-    hold-for: 1m
+  - concurrency: 10
+    iterations: 10
+    ramp-up: 1m
+    hold-for: 10m
     scenario: send-notification
 
 scenarios:
@@ -36,6 +38,8 @@ scenarios:
         body: ${notification}
 
 reporting:
-    - module: passfail
-      criteria:
-        Send notification too slow: p90 of SendNotification>500ms
+  - module: passfail
+    criteria:
+      - 'SendNotification too high error rate: failures>1%, continue as failed, label=SendNotification, title="SendNotification error rate too high"'
+      - 'SendNotification is too slow: p90>3000ms, stop as failed, label=SendNotification, title="SendNotification response time too high"'
+      - 'SendNotification needs improvement: p90>2000ms and p90<=3000ms, continue as passed, label=SendNotification, title="SendNotification needs improvement"'
