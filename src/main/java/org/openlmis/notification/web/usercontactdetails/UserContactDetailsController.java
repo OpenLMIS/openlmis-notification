@@ -24,7 +24,6 @@ import static org.openlmis.notification.i18n.MessageKeys.ERROR_VERIFICATIONS_ID_
 import static org.openlmis.notification.i18n.MessageKeys.ERROR_VERIFICATION_EMAIL_VERIFIED;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -41,20 +40,18 @@ import org.openlmis.notification.i18n.MessageService;
 import org.openlmis.notification.repository.EmailVerificationTokenRepository;
 import org.openlmis.notification.repository.UserContactDetailsRepository;
 import org.openlmis.notification.service.EmailVerificationNotifier;
+import org.openlmis.notification.service.EmailVerificationTokenService;
 import org.openlmis.notification.service.PermissionService;
 import org.openlmis.notification.service.UserContactDetailsService;
 import org.openlmis.notification.web.NotFoundException;
 import org.openlmis.notification.web.ValidationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.i18n.LocaleContextHolder;
-import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
-import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -92,6 +89,9 @@ public class UserContactDetailsController {
 
   @Autowired
   private UserContactDetailsService userContactDetailsService;
+
+  @Autowired
+  private EmailVerificationTokenService emailVerificationTokenService;
 
   /**
    * Returns all instances of the {@link UserContactDetailsDto} class matching all of the provided
@@ -191,33 +191,7 @@ public class UserContactDetailsController {
     List<UserContactDetailsResponseDto.FailedUserDetailsResponse> failedResults = new ArrayList<>();
 
     for (UserContactDetailsDto dto : userContactDetailsDtoList) {
-      try {
-        BindingResult bindingResult = new BeanPropertyBindingResult(dto, "userContactDetailsDto");
-        permissionService.canManageUserContactDetails(dto.getReferenceDataUserId());
-
-        validator.validate(dto, bindingResult);
-        List<String> errors;
-        if (bindingResult.hasErrors()) {
-          errors = bindingResult.getAllErrors().stream()
-              .map(DefaultMessageSourceResolvable::getDefaultMessage)
-              .collect(Collectors.toList());
-          failedResults.add(
-              new UserContactDetailsResponseDto.FailedUserDetailsResponse(
-                  dto.getReferenceDataUserId(), errors));
-        } else {
-          UserContactDetails contactDetails = UserContactDetails
-              .newUserContactDetails(dto);
-          userContactDetailsService.addOrUpdate(contactDetails);
-
-          successfulResults.add(
-              new UserContactDetailsResponseDto.UserDetailsResponse(dto.getReferenceDataUserId()));
-        }
-      } catch (Exception ex) {
-        failedResults.add(new UserContactDetailsResponseDto.FailedUserDetailsResponse(
-            dto.getReferenceDataUserId(),
-            Collections.singletonList(
-                MessageKeys.ERROR_SAVING_BATCH_CONTACT_DETAILS)));
-      }
+      userContactDetailsService.saveUsersContactDetails(dto, successfulResults, failedResults);
     }
 
     return new UserContactDetailsResponseDto(successfulResults, failedResults);
@@ -307,15 +281,12 @@ public class UserContactDetailsController {
    * Deletes user contact details.
    *
    * @param userIds user ids for which contact details will be deleted
-   * @return empty content
    */
   @DeleteMapping(value = "/userContactDetails/batch")
   @ResponseStatus(HttpStatus.OK)
-  public ResponseEntity<Void> deleteContactDetailsByUserIds(@RequestBody Set<UUID> userIds) {
-    emailVerificationTokenRepository.deleteByUserIds(userIds);
-    userContactDetailsRepository.deleteByUserIds(userIds);
-
-    return ResponseEntity.noContent().build();
+  public void deleteContactDetailsByUserIds(@RequestBody Set<UUID> userIds) {
+    userContactDetailsService.deleteByUserIds(userIds);
+    emailVerificationTokenService.deleteByUserIds(userIds);
   }
 
   private UserContactDetailsDto toDto(UserContactDetails userContactDetails) {

@@ -23,7 +23,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.transaction.annotation.Transactional;
 
 public interface EmailVerificationTokenRepository
     extends JpaRepository<EmailVerificationToken, UUID> {
@@ -33,7 +32,6 @@ public interface EmailVerificationTokenRepository
   EmailVerificationToken findOneByEmailAddress(String emailAddress);
 
   @Modifying
-  @Transactional
   @Query(value = "DELETE FROM notification.email_verification_tokens evt "
       + "WHERE evt.usercontactdetailsid IN (:userIds)",
       nativeQuery = true)
