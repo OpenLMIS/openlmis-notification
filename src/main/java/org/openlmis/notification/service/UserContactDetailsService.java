@@ -17,15 +17,31 @@ package org.openlmis.notification.service;
 
 import static org.openlmis.notification.i18n.MessageKeys.ERROR_USER_CONTACT_DETAILS_NOT_FOUND;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 import org.openlmis.notification.domain.EmailDetails;
 import org.openlmis.notification.domain.EmailVerificationToken;
 import org.openlmis.notification.domain.UserContactDetails;
+import org.openlmis.notification.i18n.MessageKeys;
 import org.openlmis.notification.repository.EmailVerificationTokenRepository;
 import org.openlmis.notification.repository.UserContactDetailsRepository;
 import org.openlmis.notification.web.NotFoundException;
+import org.openlmis.notification.web.usercontactdetails.SaveBatchResultDto;
+import org.openlmis.notification.web.usercontactdetails.UserContactDetailsDto;
+import org.openlmis.notification.web.usercontactdetails.UserContactDetailsDtoValidator;
+import org.openlmis.notification.web.usercontactdetails.UserContactDetailsResponseDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.BeanPropertyBindingResult;
+import org.springframework.validation.BindingResult;
 
 @Service
 public class UserContactDetailsService {
@@ -39,6 +55,12 @@ public class UserContactDetailsService {
   @Autowired
   private EmailVerificationTokenRepository emailVerificationTokenRepository;
 
+  @Autowired
+  private UserContactDetailsDtoValidator validator;
+
+  @Autowired
+  private UserContactDetailsService userContactDetailsService;
+
   /**
    * Adds a new or updates existing user's contact details.
    */
@@ -46,6 +68,56 @@ public class UserContactDetailsService {
     return userContactDetailsRepository.existsById(details.getReferenceDataUserId())
         ? updateUserContactDetails(details)
         : addUserContactDetails(details);
+  }
+
+  /**
+   * Saves user contact details.
+   *
+   * @param userDto user contact details object
+   * @return {@link SaveBatchResultDto} object with saving results
+   */
+  public SaveBatchResultDto<UserContactDetailsResponseDto.UserDetailsResponse> saveContactDetails(
+      UserContactDetailsDto userDto) {
+    List<UserContactDetailsResponseDto.UserDetailsResponse> successfulResults = new ArrayList<>();
+    List<UserContactDetailsResponseDto.UserDetailsResponse> failedResults = new ArrayList<>();
+    try {
+      BindingResult bindingResult = new BeanPropertyBindingResult(userDto, "userContactDetailsDto");
+      validator.validate(userDto, bindingResult);
+      List<String> errors;
+      if (bindingResult.hasErrors()) {
+        errors = bindingResult.getAllErrors().stream()
+            .map(DefaultMessageSourceResolvable::getDefaultMessage)
+            .collect(Collectors.toList());
+        failedResults.add(
+            new UserContactDetailsResponseDto.FailedUserDetailsResponse(
+                userDto.getReferenceDataUserId(), errors));
+      } else {
+        UserContactDetails contactDetails = UserContactDetails
+            .newUserContactDetails(userDto);
+        userContactDetailsService.addOrUpdate(contactDetails);
+
+        successfulResults.add(new UserContactDetailsResponseDto.UserDetailsResponse(
+            userDto.getReferenceDataUserId()));
+      }
+    } catch (Exception ex) {
+      String errorMessage = String.format("%s: %s", MessageKeys.ERROR_SAVING_BATCH_CONTACT_DETAILS,
+          ex.getMessage());
+      failedResults.add(new UserContactDetailsResponseDto.FailedUserDetailsResponse(
+          userDto.getReferenceDataUserId(),
+          Collections.singletonList(errorMessage)));
+    }
+
+    return new SaveBatchResultDto<>(successfulResults, failedResults);
+  }
+
+  /**
+   * Deletes user contact details.
+   *
+   * @param userIds user ids for whom contact details will be removed
+   */
+  @Transactional
+  public void deleteByUserIds(Set<UUID> userIds) {
+    userContactDetailsRepository.deleteByUserIds(userIds);
   }
 
   private UserContactDetails addUserContactDetails(UserContactDetails toSave) {

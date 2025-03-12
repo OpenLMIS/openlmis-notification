@@ -15,6 +15,7 @@
 
 package org.openlmis.notification.repository;
 
+import java.util.Set;
 import java.util.UUID;
 import org.openlmis.notification.domain.UserContactDetails;
 import org.openlmis.notification.repository.custom.UserContactDetailsRepositoryCustom;
@@ -23,6 +24,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface UserContactDetailsRepository
     extends JpaRepository<UserContactDetails, UUID>,
@@ -39,4 +43,9 @@ public interface UserContactDetailsRepository
     return page.hasContent() ? page.getContent().get(0) : null;
   }
 
+  @Modifying
+  @Query(value = "DELETE FROM notification.user_contact_details ucd "
+      + "WHERE ucd.referencedatauserid IN (:userIds)",
+      nativeQuery = true)
+  void deleteByUserIds(@Param("userIds") Set<UUID> userIds);
 }

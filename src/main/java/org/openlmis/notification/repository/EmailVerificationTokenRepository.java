@@ -15,10 +15,14 @@
 
 package org.openlmis.notification.repository;
 
+import java.util.Set;
 import java.util.UUID;
 import org.openlmis.notification.domain.EmailVerificationToken;
 import org.openlmis.notification.domain.UserContactDetails;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface EmailVerificationTokenRepository
     extends JpaRepository<EmailVerificationToken, UUID> {
@@ -27,4 +31,9 @@ public interface EmailVerificationTokenRepository
 
   EmailVerificationToken findOneByEmailAddress(String emailAddress);
 
+  @Modifying
+  @Query(value = "DELETE FROM notification.email_verification_tokens evt "
+      + "WHERE evt.usercontactdetailsid IN (:userIds)",
+      nativeQuery = true)
+  void deleteByUserIds(@Param("userIds") Set<UUID> userIds);
 }

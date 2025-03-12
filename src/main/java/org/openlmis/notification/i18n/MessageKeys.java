@@ -150,6 +150,9 @@ public abstract class MessageKeys {
   public static final String ERROR_SIZE_NOT_POSITIVE =
       join(ERROR_PREFIX, "pageable.size.notPositive");
 
+  public static final String ERROR_SAVING_BATCH_CONTACT_DETAILS =
+      join(ERROR_PREFIX, "save.batch.contact.details");
+
   private MessageKeys() {
     throw new UnsupportedOperationException();
   }

@@ -23,8 +23,10 @@ import static org.openlmis.notification.i18n.MessageKeys.ERROR_USER_HAS_NO_EMAIL
 import static org.openlmis.notification.i18n.MessageKeys.ERROR_VERIFICATIONS_ID_MISMATCH;
 import static org.openlmis.notification.i18n.MessageKeys.ERROR_VERIFICATION_EMAIL_VERIFIED;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.apache.commons.collections.MapUtils;
@@ -38,6 +40,7 @@ import org.openlmis.notification.i18n.MessageService;
 import org.openlmis.notification.repository.EmailVerificationTokenRepository;
 import org.openlmis.notification.repository.UserContactDetailsRepository;
 import org.openlmis.notification.service.EmailVerificationNotifier;
+import org.openlmis.notification.service.EmailVerificationTokenService;
 import org.openlmis.notification.service.PermissionService;
 import org.openlmis.notification.service.UserContactDetailsService;
 import org.openlmis.notification.web.NotFoundException;
@@ -50,6 +53,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.MultiValueMap;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -85,6 +89,9 @@ public class UserContactDetailsController {
 
   @Autowired
   private UserContactDetailsService userContactDetailsService;
+
+  @Autowired
+  private EmailVerificationTokenService emailVerificationTokenService;
 
   /**
    * Returns all instances of the {@link UserContactDetailsDto} class matching all of the provided
@@ -170,6 +177,31 @@ public class UserContactDetailsController {
   }
 
   /**
+   * Creates or updates contact details for multiple users.
+   *
+   * @param userContactDetailsDtoList  list of user contact details
+   * @return  the new or updated contact details for list of users
+   */
+  @PutMapping("/userContactDetails/batch")
+  @ResponseStatus(HttpStatus.OK)
+  @ResponseBody
+  public UserContactDetailsResponseDto saveUsersContactDetails(
+      @RequestBody List<UserContactDetailsDto> userContactDetailsDtoList) {
+    permissionService.canManageUserContactDetails(null);
+    List<UserContactDetailsResponseDto.UserDetailsResponse> successfulResults = new ArrayList<>();
+    List<UserContactDetailsResponseDto.UserDetailsResponse> failedResults = new ArrayList<>();
+
+    for (UserContactDetailsDto dto : userContactDetailsDtoList) {
+      SaveBatchResultDto<UserContactDetailsResponseDto.UserDetailsResponse> result =
+          userContactDetailsService.saveContactDetails(dto);
+      successfulResults.addAll(result.getSuccessfulResults());
+      failedResults.addAll(result.getFailedResults());
+    }
+
+    return new UserContactDetailsResponseDto(successfulResults, failedResults);
+  }
+
+  /**
    * Get current pending verification email.
    */
   @GetMapping(value = "/userContactDetails/{id}/verifications")
@@ -247,6 +279,18 @@ public class UserContactDetailsController {
 
     return messageService
         .localize(new Message(EMAIL_VERIFICATION_SUCCESS, verificationToken.getEmailAddress()));
+  }
+
+  /**
+   * Deletes user contact details.
+   *
+   * @param userIds user ids for which contact details will be deleted
+   */
+  @DeleteMapping(value = "/userContactDetails/batch")
+  @ResponseStatus(HttpStatus.OK)
+  public void deleteContactDetailsByUserIds(@RequestBody Set<UUID> userIds) {
+    userContactDetailsService.deleteByUserIds(userIds);
+    emailVerificationTokenService.deleteByUserIds(userIds);
   }
 
   private UserContactDetailsDto toDto(UserContactDetails userContactDetails) {

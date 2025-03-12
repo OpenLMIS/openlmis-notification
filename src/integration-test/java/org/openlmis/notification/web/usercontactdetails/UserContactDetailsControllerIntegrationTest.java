@@ -30,8 +30,10 @@ import static org.mockito.Matchers.anySetOf;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.when;
 import static org.openlmis.notification.i18n.MessageKeys.EMAIL_VERIFICATION_SUCCESS;
 import static org.openlmis.notification.i18n.MessageKeys.ERROR_EMAIL_DUPLICATED;
 import static org.openlmis.notification.i18n.MessageKeys.ERROR_EMAIL_INVALID;
@@ -56,9 +58,14 @@ import com.jayway.restassured.response.Response;
 import com.jayway.restassured.specification.RequestSpecification;
 import guru.nidi.ramltester.core.RamlReport;
 import guru.nidi.ramltester.junit.RamlMatchers;
+
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.Before;
@@ -85,6 +92,7 @@ public class UserContactDetailsControllerIntegrationTest extends BaseWebIntegrat
 
   private static final String RESOURCE_URL = "/api/userContactDetails";
   private static final String ID_RESOURCE_URL = RESOURCE_URL + "/{id}";
+  private static final String BATCH_RESOURCE_URL = RESOURCE_URL + "/batch";
   private static final String VERIFICATIONS_URL = ID_RESOURCE_URL + "/verifications";
   private static final String TOKEN_URL = VERIFICATIONS_URL + "/{token}";
 
@@ -623,6 +631,71 @@ public class UserContactDetailsControllerIntegrationTest extends BaseWebIntegrat
     verifyZeroInteractions(emailVerificationNotifier);
   }
 
+  @Test
+  public void shouldSaveUserContactDetails() {
+    UserContactDetailsDto userContactDetailsDto1 = new UserContactDetailsDto();
+    userContactDetailsDto1.setReferenceDataUserId(UUID.randomUUID());
+    userContactDetailsDto1.setPhoneNumber("111222333");
+
+    UserContactDetailsDto userContactDetailsDto2 = new UserContactDetailsDto();
+    userContactDetailsDto2.setReferenceDataUserId(UUID.randomUUID());
+    userContactDetailsDto2.setPhoneNumber("777888999");
+
+    List<UserContactDetailsDto> requestBody =
+        Arrays.asList(userContactDetailsDto1, userContactDetailsDto2);
+
+    when(userContactDetailsRepository.save(any()))
+        .thenReturn(UserContactDetails.newUserContactDetails(userContactDetailsDto1));
+
+    UserContactDetailsResponseDto response = batchPut(requestBody)
+        .then()
+        .statusCode(200)
+        .extract()
+        .as(UserContactDetailsResponseDto.class);
+
+    verify(permissionService).canManageUserContactDetails(any());
+    verify(validator, times(2)).validate(any(), any());
+    assertEquals(2, response.getSuccessfulResults().size());
+    assertEquals(0, response.getFailedResults().size());
+  }
+
+  @Test
+  public void shouldNotSaveUserContactDetailsBecauseOfException() {
+    UserContactDetailsDto userContactDetailsDto1 = new UserContactDetailsDto();
+    userContactDetailsDto1.setReferenceDataUserId(UUID.randomUUID());
+    userContactDetailsDto1.setPhoneNumber("111222333");
+
+    UserContactDetailsDto userContactDetailsDto2 = new UserContactDetailsDto();
+    userContactDetailsDto2.setReferenceDataUserId(UUID.randomUUID());
+    userContactDetailsDto2.setPhoneNumber("777888999");
+
+    List<UserContactDetailsDto> requestBody =
+        Arrays.asList(userContactDetailsDto1, userContactDetailsDto2);
+
+    UserContactDetailsResponseDto response = batchPut(requestBody)
+        .then()
+        .statusCode(200)
+        .extract()
+        .as(UserContactDetailsResponseDto.class);
+
+    verify(permissionService).canManageUserContactDetails(any());
+    verify(validator, times(2)).validate(any(), any());
+    assertEquals(2, response.getFailedResults().size());
+    assertEquals(0, response.getSuccessfulResults().size());
+  }
+
+  @Test
+  public void shouldDeleteContactDetails() {
+    Set<UUID> idsToRemove = new HashSet<>();
+    idsToRemove.add(UUID.randomUUID());
+    idsToRemove.add(UUID.randomUUID());
+
+    delete(idsToRemove);
+
+    verify(emailVerificationTokenRepository).deleteByUserIds(idsToRemove);
+    verify(userContactDetailsRepository).deleteByUserIds(idsToRemove);
+  }
+
   private Response put(UserContactDetailsDto dto, UUID referenceDataUserId) {
     return startUserRequest()
         .header(CONTENT_TYPE, APPLICATION_JSON_VALUE)
@@ -630,6 +703,22 @@ public class UserContactDetailsControllerIntegrationTest extends BaseWebIntegrat
         .given()
         .pathParam(ID, referenceDataUserId)
         .put(ID_RESOURCE_URL);
+  }
+
+  private Response batchPut(List<UserContactDetailsDto> userContactDetailsDtoList) {
+    return startUserRequest()
+        .header(CONTENT_TYPE, APPLICATION_JSON_VALUE)
+        .body(userContactDetailsDtoList)
+        .given()
+        .put(BATCH_RESOURCE_URL);
+  }
+
+  private Response delete(Set<UUID> idsToRemove) {
+    return startUserRequest()
+        .header(CONTENT_TYPE, APPLICATION_JSON_VALUE)
+        .body(idsToRemove)
+        .given()
+        .delete(BATCH_RESOURCE_URL);
   }
 
   private Response getAll(Map<String, String> queryParams) {
