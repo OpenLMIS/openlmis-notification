@@ -653,7 +653,7 @@ public class UserContactDetailsControllerIntegrationTest extends BaseWebIntegrat
         .extract()
         .as(UserContactDetailsResponseDto.class);
 
-    verify(permissionService, times(2)).canManageUserContactDetails(any());
+    verify(permissionService).canManageUserContactDetails(any());
     verify(validator, times(2)).validate(any(), any());
     assertEquals(2, response.getSuccessfulResults().size());
     assertEquals(0, response.getFailedResults().size());
@@ -678,7 +678,7 @@ public class UserContactDetailsControllerIntegrationTest extends BaseWebIntegrat
         .extract()
         .as(UserContactDetailsResponseDto.class);
 
-    verify(permissionService, times(2)).canManageUserContactDetails(any());
+    verify(permissionService).canManageUserContactDetails(any());
     verify(validator, times(2)).validate(any(), any());
     assertEquals(2, response.getFailedResults().size());
     assertEquals(0, response.getSuccessfulResults().size());

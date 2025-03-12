@@ -16,40 +16,14 @@
 package org.openlmis.notification.web.usercontactdetails;
 
 import java.util.List;
-import java.util.UUID;
-
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
-@Setter
-public class UserContactDetailsResponseDto {
-  private List<UserDetailsResponse> successfulResults;
-
-  private List<UserDetailsResponse> failedResults;
-
-  @NoArgsConstructor
-  @AllArgsConstructor
-  @Getter
-  @Setter
-  public static class UserDetailsResponse {
-    private UUID referenceDataUserId;
-  }
-
-  @NoArgsConstructor
-  @AllArgsConstructor
-  @Getter
-  @Setter
-  public static class FailedUserDetailsResponse extends UserDetailsResponse {
-    private List<String> errors;
-
-    public FailedUserDetailsResponse(UUID referenceDataUserId, List<String> errors) {
-      super(referenceDataUserId);
-      this.errors = errors;
-    }
-  }
+public class SaveBatchResultDto<T> {
+  private List<T> successfulResults;
+  private List<T> failedResults;
 }

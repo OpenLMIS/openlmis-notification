@@ -17,6 +17,7 @@ package org.openlmis.notification.service;
 
 import static org.openlmis.notification.i18n.MessageKeys.ERROR_USER_CONTACT_DETAILS_NOT_FOUND;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -30,6 +31,7 @@ import org.openlmis.notification.i18n.MessageKeys;
 import org.openlmis.notification.repository.EmailVerificationTokenRepository;
 import org.openlmis.notification.repository.UserContactDetailsRepository;
 import org.openlmis.notification.web.NotFoundException;
+import org.openlmis.notification.web.usercontactdetails.SaveBatchResultDto;
 import org.openlmis.notification.web.usercontactdetails.UserContactDetailsDto;
 import org.openlmis.notification.web.usercontactdetails.UserContactDetailsDtoValidator;
 import org.openlmis.notification.web.usercontactdetails.UserContactDetailsResponseDto;
@@ -57,9 +59,6 @@ public class UserContactDetailsService {
   private UserContactDetailsDtoValidator validator;
 
   @Autowired
-  private PermissionService permissionService;
-
-  @Autowired
   private UserContactDetailsService userContactDetailsService;
 
   /**
@@ -75,17 +74,14 @@ public class UserContactDetailsService {
    * Saves user contact details.
    *
    * @param userDto user contact details object
-   * @param successfulResults list with success results
-   * @param failedResults list with failed results
+   * @return {@link SaveBatchResultDto} object with saving results
    */
-  public void saveUsersContactDetails(UserContactDetailsDto userDto,
-      List<UserContactDetailsResponseDto.UserDetailsResponse> successfulResults,
-      List<UserContactDetailsResponseDto.FailedUserDetailsResponse> failedResults
-  ) {
+  public SaveBatchResultDto<UserContactDetailsResponseDto.UserDetailsResponse> saveContactDetails(
+      UserContactDetailsDto userDto) {
+    List<UserContactDetailsResponseDto.UserDetailsResponse> successfulResults = new ArrayList<>();
+    List<UserContactDetailsResponseDto.UserDetailsResponse> failedResults = new ArrayList<>();
     try {
       BindingResult bindingResult = new BeanPropertyBindingResult(userDto, "userContactDetailsDto");
-      permissionService.canManageUserContactDetails(userDto.getReferenceDataUserId());
-
       validator.validate(userDto, bindingResult);
       List<String> errors;
       if (bindingResult.hasErrors()) {
@@ -110,6 +106,8 @@ public class UserContactDetailsService {
           userDto.getReferenceDataUserId(),
           Collections.singletonList(errorMessage)));
     }
+
+    return new SaveBatchResultDto<>(successfulResults, failedResults);
   }
 
   /**

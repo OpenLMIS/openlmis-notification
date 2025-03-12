@@ -187,11 +187,15 @@ public class UserContactDetailsController {
   @ResponseBody
   public UserContactDetailsResponseDto saveUsersContactDetails(
       @RequestBody List<UserContactDetailsDto> userContactDetailsDtoList) {
+    permissionService.canManageUserContactDetails(null);
     List<UserContactDetailsResponseDto.UserDetailsResponse> successfulResults = new ArrayList<>();
-    List<UserContactDetailsResponseDto.FailedUserDetailsResponse> failedResults = new ArrayList<>();
+    List<UserContactDetailsResponseDto.UserDetailsResponse> failedResults = new ArrayList<>();
 
     for (UserContactDetailsDto dto : userContactDetailsDtoList) {
-      userContactDetailsService.saveUsersContactDetails(dto, successfulResults, failedResults);
+      SaveBatchResultDto<UserContactDetailsResponseDto.UserDetailsResponse> result =
+          userContactDetailsService.saveContactDetails(dto);
+      successfulResults.addAll(result.getSuccessfulResults());
+      failedResults.addAll(result.getFailedResults());
     }
 
     return new UserContactDetailsResponseDto(successfulResults, failedResults);
