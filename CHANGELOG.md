@@ -1,5 +1,8 @@
-4.4.0 / wip
+4.3.5 / wip
 ==================
+
+Improvements:
+* [OLMIS-8065](https://openlmis.atlassian.net/browse/OLMIS-8065): Add batch APIs needed for user import functionality
 
 4.3.4 / 31.10.2024
 ==================
