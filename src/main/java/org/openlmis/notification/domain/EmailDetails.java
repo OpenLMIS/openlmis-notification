@@ -50,7 +50,7 @@ public class EmailDetails {
   public EmailDetails(String email, Boolean emailVerified) {
     if (StringUtils.isBlank(email)) {
       this.email = null;
-      this.emailVerified = null;
+      this.emailVerified = false;
     } else {
       this.email = email;
       this.emailVerified = BooleanUtils.toBoolean(emailVerified);
