@@ -1,11 +1,13 @@
-4.3.5 / wip
+4.3.5 / 2025-03-31
 ==================
 
 Improvements:
 * [OLMIS-8065](https://openlmis.atlassian.net/browse/OLMIS-8065): Add batch APIs needed for user import functionality
+* Minor coverage updates and code analysis improvements.
 
 4.3.4 / 31.10.2024
 ==================
+
 Improvements:
 * [OLMIS-7895](https://openlmis.atlassian.net/browse/OLMIS-7895): Add demo data for BUQ and TB Monthly
 * [OIS-14](https://openlmis.atlassian.net/browse/OIS-14): Upgrade Transifex API version
