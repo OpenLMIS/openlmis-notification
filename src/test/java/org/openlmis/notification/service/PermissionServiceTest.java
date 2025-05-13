@@ -17,7 +17,7 @@ package org.openlmis.notification.service;
 
 import static org.hamcrest.Matchers.arrayContaining;
 import static org.hamcrest.Matchers.hasProperty;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.openlmis.notification.i18n.MessageKeys.PERMISSION_MISSING;
 import static org.openlmis.notification.i18n.MessageKeys.PERMISSION_MISSING_GENERIC;

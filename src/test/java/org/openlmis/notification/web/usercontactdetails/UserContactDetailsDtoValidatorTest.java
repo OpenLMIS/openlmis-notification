@@ -16,7 +16,7 @@
 package org.openlmis.notification.web.usercontactdetails;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.openlmis.notification.i18n.MessageKeys.ERROR_EMAIL_DUPLICATED;
 import static org.openlmis.notification.i18n.MessageKeys.ERROR_EMAIL_INVALID;
