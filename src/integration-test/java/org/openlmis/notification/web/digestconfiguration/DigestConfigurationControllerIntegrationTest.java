@@ -19,8 +19,8 @@ import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Matchers.any;
 import static org.openlmis.notification.i18n.MessageKeys.ERROR_DIGEST_CONFIGURATION_NOT_FOUND;
 
 import guru.nidi.ramltester.junit.RamlMatchers;
