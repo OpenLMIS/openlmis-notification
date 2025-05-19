@@ -39,7 +39,7 @@ dependencies {
     compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
     compile "com.sun.mail:jakarta.mail"
     compile "org.apache.commons:commons-lang3"
-    compile "org.postgresql:postgresql:42.0.0"
+    compile "org.postgresql:postgresql:42.6.2"
     compile "org.projectlombok:lombok"
     compile "org.slf4j:slf4j-ext"
     compile "org.springframework.boot:spring-boot-starter-data-jpa"
