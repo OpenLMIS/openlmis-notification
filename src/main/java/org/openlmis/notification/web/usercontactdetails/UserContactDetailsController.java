@@ -26,6 +26,7 @@ import static org.openlmis.notification.i18n.MessageKeys.ERROR_VERIFICATION_EMAI
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -192,6 +193,12 @@ public class UserContactDetailsController {
     List<UserContactDetailsResponseDto.UserDetailsResponse> failedResults = new ArrayList<>();
 
     for (UserContactDetailsDto dto : userContactDetailsDtoList) {
+      if (dto.getEmailDetails().getEmailVerified() == null) {
+        Optional<UserContactDetails> existing =
+            userContactDetailsRepository.findById(dto.getReferenceDataUserId());
+        existing.ifPresent(current ->
+            dto.getEmailDetails().setEmailVerified(current.getEmailDetails().getEmailVerified()));
+      }
       SaveBatchResultDto<UserContactDetailsResponseDto.UserDetailsResponse> result =
           userContactDetailsService.saveContactDetails(dto);
       successfulResults.addAll(result.getSuccessfulResults());

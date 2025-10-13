@@ -70,6 +70,7 @@ import java.util.UUID;
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.Before;
 import org.junit.Test;
+import org.openlmis.notification.domain.EmailDetails;
 import org.openlmis.notification.domain.EmailVerificationToken;
 import org.openlmis.notification.domain.UserContactDetails;
 import org.openlmis.notification.repository.EmailVerificationTokenRepository;
@@ -636,10 +637,12 @@ public class UserContactDetailsControllerIntegrationTest extends BaseWebIntegrat
     UserContactDetailsDto userContactDetailsDto1 = new UserContactDetailsDto();
     userContactDetailsDto1.setReferenceDataUserId(UUID.randomUUID());
     userContactDetailsDto1.setPhoneNumber("111222333");
+    userContactDetailsDto1.setEmailDetails(new EmailDetails("test1@gmail.com", true));
 
     UserContactDetailsDto userContactDetailsDto2 = new UserContactDetailsDto();
     userContactDetailsDto2.setReferenceDataUserId(UUID.randomUUID());
     userContactDetailsDto2.setPhoneNumber("777888999");
+    userContactDetailsDto2.setEmailDetails(new EmailDetails("test2@gmail.com", true));
 
     List<UserContactDetailsDto> requestBody =
         Arrays.asList(userContactDetailsDto1, userContactDetailsDto2);
@@ -664,10 +667,12 @@ public class UserContactDetailsControllerIntegrationTest extends BaseWebIntegrat
     UserContactDetailsDto userContactDetailsDto1 = new UserContactDetailsDto();
     userContactDetailsDto1.setReferenceDataUserId(UUID.randomUUID());
     userContactDetailsDto1.setPhoneNumber("111222333");
+    userContactDetailsDto1.setEmailDetails(new EmailDetails("test1@gmail.com", true));
 
     UserContactDetailsDto userContactDetailsDto2 = new UserContactDetailsDto();
     userContactDetailsDto2.setReferenceDataUserId(UUID.randomUUID());
     userContactDetailsDto2.setPhoneNumber("777888999");
+    userContactDetailsDto2.setEmailDetails(new EmailDetails("test2@gmail.com", false));
 
     List<UserContactDetailsDto> requestBody =
         Arrays.asList(userContactDetailsDto1, userContactDetailsDto2);
@@ -758,5 +763,4 @@ public class UserContactDetailsControllerIntegrationTest extends BaseWebIntegrat
         .given(validator)
         .validate(any(UserContactDetailsDto.class), any(Errors.class));
   }
-
 }
