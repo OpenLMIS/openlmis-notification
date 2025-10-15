@@ -663,6 +663,41 @@ public class UserContactDetailsControllerIntegrationTest extends BaseWebIntegrat
   }
 
   @Test
+  public void shouldSaveUserContactDetailsWithExistingEmailVerifiedValueWhenItsBlank() {
+    given(userContactDetailsRepository.findById(any()))
+        .willReturn(Optional.of(userContactDetails));
+
+    UserContactDetailsDto userContactDetailsDto1 = new UserContactDetailsDto();
+    userContactDetailsDto1.setReferenceDataUserId(UUID.randomUUID());
+    userContactDetailsDto1.setPhoneNumber("111222333");
+    userContactDetailsDto1.setEmailDetails(new EmailDetails("test1@gmail.com", true));
+    userContactDetailsDto1.getEmailDetails().setEmailVerified(null);
+
+    UserContactDetailsDto userContactDetailsDto2 = new UserContactDetailsDto();
+    userContactDetailsDto2.setReferenceDataUserId(UUID.randomUUID());
+    userContactDetailsDto2.setPhoneNumber("9998888777");
+    userContactDetailsDto2.setEmailDetails(new EmailDetails("test2@gmail.com", false));
+    userContactDetailsDto2.getEmailDetails().setEmailVerified(null);
+
+    List<UserContactDetailsDto> requestBody =
+        Arrays.asList(userContactDetailsDto1, userContactDetailsDto2);
+
+    when(userContactDetailsRepository.save(any()))
+        .thenReturn(UserContactDetails.newUserContactDetails(userContactDetailsDto1));
+
+    UserContactDetailsResponseDto response = batchPut(requestBody)
+        .then()
+        .statusCode(200)
+        .extract()
+        .as(UserContactDetailsResponseDto.class);
+
+    verify(permissionService).canManageUserContactDetails(any());
+    verify(validator, times(2)).validate(any(), any());
+    assertEquals(2, response.getSuccessfulResults().size());
+    assertEquals(0, response.getFailedResults().size());
+  }
+
+  @Test
   public void shouldNotSaveUserContactDetailsBecauseOfException() {
     UserContactDetailsDto userContactDetailsDto1 = new UserContactDetailsDto();
     userContactDetailsDto1.setReferenceDataUserId(UUID.randomUUID());
