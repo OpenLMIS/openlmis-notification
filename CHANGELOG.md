@@ -1,6 +1,12 @@
 Upcoming Version (WIP)
 ==================
 
+Improvements:
+* [OLMIS-8125](https://openlmis.atlassian.net/browse/OLMIS-8125): `isEmailVerified` field in the Users import process is now handled automatically.
+
+Changes:
+* Upgrade PostgreSQL JDBC driver to 42.6.2 for PostgreSQL 14 compatibility
+
 4.3.5 / 2025-03-31
 ==================
 
