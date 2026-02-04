@@ -85,6 +85,7 @@ public class ResourceServerSecurityConfiguration implements ResourceServerConfig
         .anonymous().and()
         .authorizeRequests()
         .antMatchers(
+            "/actuator/health",
             "/notification",
             "/webjars/**",
             "/notification/webjars/**",

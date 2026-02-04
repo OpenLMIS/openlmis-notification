@@ -35,6 +35,7 @@ repositories {
 }
 
 dependencies {
+    compile "org.springframework.boot:spring-boot-starter-actuator"
     compile "com.fasterxml.jackson.datatype:jackson-datatype-hibernate4"
     compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
     compile "com.sun.mail:jakarta.mail"
@@ -248,5 +249,5 @@ build {
     dependsOn check
     dependsOn ramlToHtml
     dependsOn copyRamlHtmlToBuild
-    dependsOn copyConsulRegistrationToBuild
+    dependsOn prepareConsulBuild
 }
