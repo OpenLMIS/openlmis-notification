@@ -35,6 +35,9 @@ public class NotificationToSendRetriever {
   static final String IMPORTANT_HEADER = "important";
   static final String CHANNEL_TO_USE_HEADER = "channelToUse";
 
+  static final String NOTIFICATION_ID_HEADER = "notificationId";
+  static final String RETRY_COUNT_HEADER = "retryCount";
+
   private JpaExecutor jpaExecutor;
 
   @Autowired
@@ -68,6 +71,8 @@ public class NotificationToSendRetriever {
         .setHeader(RECIPIENT_HEADER, notification.getUserId())
         .setHeader(IMPORTANT_HEADER, notification.getImportant())
         .setHeader(CHANNEL_TO_USE_HEADER, pending.getChannel())
+        .setHeader(NOTIFICATION_ID_HEADER, notification.getId())
+        .setHeader(RETRY_COUNT_HEADER, pending.getRetryCount())
         .build();
   }
 

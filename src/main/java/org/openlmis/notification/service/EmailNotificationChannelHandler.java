@@ -45,7 +45,8 @@ public class EmailNotificationChannelHandler {
   /**
    * Tries to send a notification to a user by using email channel.
    */
-  @ServiceActivator(inputChannel = EMAIL_SEND_NOW_CHANNEL)
+  @ServiceActivator(inputChannel = EMAIL_SEND_NOW_CHANNEL,
+      adviceChain = SendFailureRetryAdvice.BEAN_NAME)
   public void handle(NotificationMessage payload,
       @Header(RECIPIENT_HEADER) UUID recipient,
       @Header(value = IMPORTANT_HEADER, required = false) Boolean important) {
