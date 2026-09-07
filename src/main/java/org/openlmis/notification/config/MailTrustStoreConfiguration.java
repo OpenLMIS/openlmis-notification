@@ -18,13 +18,14 @@ package org.openlmis.notification.config;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -82,7 +83,7 @@ public class MailTrustStoreConfiguration {
    * Digest of the contents last attempted, successfully or not. Recording attempts rather than
    * successes keeps an unloadable store from being retried, and logged, on every tick.
    */
-  private volatile byte[] attemptedDigest;
+  private volatile String attemptedDigest;
 
   /**
    * Whether an unreadable trust store has already been reported, so it is not complained about
@@ -171,7 +172,7 @@ public class MailTrustStoreConfiguration {
     try {
       byte[] content = readTrustStore();
 
-      if (null == content || Arrays.equals(attemptedDigest, digest(content))) {
+      if (null == content || Objects.equals(attemptedDigest, digest(content))) {
         return;
       }
 
@@ -236,9 +237,11 @@ public class MailTrustStoreConfiguration {
     }
   }
 
-  private byte[] digest(byte[] content) {
+  private String digest(byte[] content) {
     try {
-      return MessageDigest.getInstance(DIGEST_ALGORITHM).digest(content);
+      byte[] hash = MessageDigest.getInstance(DIGEST_ALGORITHM).digest(content);
+
+      return new BigInteger(1, hash).toString(16);
     } catch (NoSuchAlgorithmException exp) {
       // Every JVM is required to provide SHA-256.
       throw new IllegalStateException(DIGEST_ALGORITHM + " is not available", exp);

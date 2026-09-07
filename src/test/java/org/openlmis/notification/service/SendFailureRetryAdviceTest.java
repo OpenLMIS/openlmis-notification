@@ -16,6 +16,7 @@
 package org.openlmis.notification.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -33,7 +34,9 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.springframework.integration.support.MessageBuilder;
 import org.springframework.messaging.Message;
+import org.springframework.test.util.ReflectionTestUtils;
 
+@SuppressWarnings("PMD.TooManyMethods")
 public class SendFailureRetryAdviceTest {
 
   private static final UUID NOTIFICATION_ID = UUID.randomUUID();
@@ -48,7 +51,7 @@ public class SendFailureRetryAdviceTest {
   @InjectMocks
   private SendFailureRetryAdvice advice;
 
-  private final Exception failure = new IllegalStateException("no route to SMTP host");
+  private final RuntimeException failure = new IllegalStateException("no route to SMTP host");
 
   @Test
   public void shouldTakeOverFailureOfAMessageThatCameOffTheQueue() {
@@ -96,6 +99,66 @@ public class SendFailureRetryAdviceTest {
     assertThat(advice.recordFailure(message, failure)).isFalse();
 
     verifyZeroInteractions(retryScheduler);
+  }
+
+  @Test
+  public void shouldReturnTheHandlerResultWhenTheSendSucceeds() {
+    TestableAdvice testable = testableAdvice();
+
+    assertThat(testable.invoke("sent", null, queuedMessage(0))).isEqualTo("sent");
+    verifyZeroInteractions(retryScheduler);
+  }
+
+  @Test
+  public void shouldSwallowAFailureThatCameOffTheQueue() {
+    TestableAdvice testable = testableAdvice();
+
+    // Swallowing is what stops the polling transaction rolling back.
+    assertThat(testable.invoke(null, failure, queuedMessage(1))).isNull();
+    verify(retryScheduler).recordFailure(eq(NOTIFICATION_ID), eq(NotificationChannel.EMAIL),
+        eq(1), any(Throwable.class));
+  }
+
+  @Test
+  public void shouldRethrowAFailureThatDidNotComeOffTheQueue() {
+    TestableAdvice testable = testableAdvice();
+
+    assertThatThrownBy(() -> testable.invoke(null, failure, MessageBuilder.withPayload(PAYLOAD)
+        .build())).isSameAs(failure);
+    verifyZeroInteractions(retryScheduler);
+  }
+
+  private TestableAdvice testableAdvice() {
+    TestableAdvice testable = new TestableAdvice();
+    ReflectionTestUtils.setField(testable, "retryScheduler", retryScheduler);
+
+    return testable;
+  }
+
+  /**
+   * Exposes doInvoke, whose ExecutionCallback parameter is only visible to subclasses.
+   */
+  private static class TestableAdvice extends SendFailureRetryAdvice {
+
+    Object invoke(Object result, RuntimeException failure, Message<?> message) {
+      return doInvoke(new ExecutionCallback() {
+
+        @Override
+        public Object execute() {
+          if (null != failure) {
+            throw failure;
+          }
+
+          return result;
+        }
+
+        @Override
+        public Object cloneAndExecute() {
+          return execute();
+        }
+      }, null, message);
+    }
+
   }
 
   private Message<String> queuedMessage(int retryCount) {

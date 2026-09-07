@@ -17,11 +17,13 @@ package org.openlmis.notification.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 import java.net.Socket;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.X509ExtendedTrustManager;
 import org.junit.Rule;
 import org.junit.Test;
@@ -68,6 +70,46 @@ public class ReloadableTrustManagerTest {
   @Test
   public void shouldRejectHandshakesBeforeATrustStoreIsLoaded() {
     assertThatThrownBy(() -> trustManager.checkServerTrusted(chain, AUTH_TYPE))
+        .isInstanceOf(CertificateException.class);
+  }
+
+  @Test
+  public void shouldDelegateEveryServerCheckOverload() throws CertificateException {
+    trustManager.set(first);
+
+    trustManager.checkServerTrusted(chain, AUTH_TYPE, (SSLEngine) null);
+
+    verify(first).checkServerTrusted(chain, AUTH_TYPE, (SSLEngine) null);
+  }
+
+  @Test
+  public void shouldDelegateEveryClientCheckOverload() throws CertificateException {
+    trustManager.set(first);
+
+    trustManager.checkClientTrusted(chain, AUTH_TYPE);
+    trustManager.checkClientTrusted(chain, AUTH_TYPE, (Socket) null);
+    trustManager.checkClientTrusted(chain, AUTH_TYPE, (SSLEngine) null);
+
+    verify(first).checkClientTrusted(chain, AUTH_TYPE);
+    verify(first).checkClientTrusted(chain, AUTH_TYPE, (Socket) null);
+    verify(first).checkClientTrusted(chain, AUTH_TYPE, (SSLEngine) null);
+  }
+
+  @Test
+  public void shouldDelegateAcceptedIssuersOnceLoaded() {
+    given(first.getAcceptedIssuers()).willReturn(chain);
+    trustManager.set(first);
+
+    assertThat(trustManager.getAcceptedIssuers()).isSameAs(chain);
+  }
+
+  @Test
+  public void shouldRejectEveryCheckBeforeATrustStoreIsLoaded() {
+    assertThatThrownBy(() -> trustManager.checkClientTrusted(chain, AUTH_TYPE))
+        .isInstanceOf(CertificateException.class);
+    assertThatThrownBy(() -> trustManager.checkServerTrusted(chain, AUTH_TYPE, (Socket) null))
+        .isInstanceOf(CertificateException.class);
+    assertThatThrownBy(() -> trustManager.checkServerTrusted(chain, AUTH_TYPE, (SSLEngine) null))
         .isInstanceOf(CertificateException.class);
   }
 
