@@ -4,6 +4,7 @@ Upcoming Version (WIP)
 Improvements:
 * [OLMIS-8280](https://openlmis.atlassian.net/browse/OLMIS-8280) Migrated the SonarCloud analysis to Java 21 by running it through the SonarQube scan action instead of the Gradle plugin, and removed the now-unused Gradle sonar plugin and configuration.
 * [OLMIS-8280](https://openlmis.atlassian.net/browse/OLMIS-8280) Removed the axios dependency from the Consul registration script, replacing it with the native Node `http` client (no more axios security advisories to track).
+* [MW-1471](https://openlmis.atlassian.net/browse/MW-1471): Activated the Prometheus metrics endpoint - `/actuator/prometheus` is exposed and permitted without authentication.
 * Stabilized consul registration and health checks
 
 Bug fixes:
