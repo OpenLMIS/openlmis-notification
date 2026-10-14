@@ -44,7 +44,8 @@ public class SmsNotificationChannelHandler {
   /**
    * Tries to send a notification to a user by using email channel.
    */
-  @ServiceActivator(inputChannel = SMS_SEND_NOW_CHANNEL)
+  @ServiceActivator(inputChannel = SMS_SEND_NOW_CHANNEL,
+      adviceChain = SendFailureRetryAdvice.BEAN_NAME)
   public void handle(NotificationMessage payload,
       @Header(RECIPIENT_HEADER) UUID recipient) {
     UserContactDetails contactDetails = userContactDetailsRepository.findById(recipient)
