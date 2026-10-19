@@ -15,9 +15,11 @@ Improvements:
 * [OLMIS-8280](https://openlmis.atlassian.net/browse/OLMIS-8280) Removed the axios dependency from the Consul registration script, replacing it with the native Node `http` client (no more axios security advisories to track).
 * [MW-1471](https://openlmis.atlassian.net/browse/MW-1471): Exposed the Prometheus metrics endpoint at `/actuator/prometheus`.
 * Stabilized consul registration and health checks
+* [OPSD-110](https://openlmis.atlassian.net/browse/OPSD-110): Allow the SMTP trust store to be replaced at runtime, so a rotated certificate no longer requires a restart.
 
 Bug fixes:
 * [OLMIS-8223](https://openlmis.atlassian.net/browse/OLMIS-8223): Fix placeholder bug in messages
+* [OPSD-110](https://openlmis.atlassian.net/browse/OPSD-110): Cap notification delivery attempts with an exponential back-off instead of retrying a failing send every second, and keep exhausted notifications as undelivered so they can be requeued through `POST /api/notifications/undelivered/retry`.
 
 
 4.4.0 / 2025-11-27

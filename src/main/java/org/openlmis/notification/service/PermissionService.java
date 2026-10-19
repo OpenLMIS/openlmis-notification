@@ -68,6 +68,18 @@ public class PermissionService {
    * Checks whether current request has access to sending notification.
    */
   public void canSendNotification() {
+    requireServiceToken();
+  }
+
+  /**
+   * Checks that the caller may requeue undelivered notifications. Restricted to service tokens,
+   * like sending is, because it requeues mail on everybody's behalf.
+   */
+  public void canRetryUndeliveredNotifications() {
+    requireServiceToken();
+  }
+
+  private void requireServiceToken() {
     if (hasNoPermission(null, false)) {
       throw new MissingPermissionException();
     }

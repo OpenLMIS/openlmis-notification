@@ -114,6 +114,23 @@ traits:
                   body:
                       application/json:
                           schema: notificationPage
+      /undelivered/retry:
+          displayName: Undelivered Notifications
+          post:
+              is: [ secured ]
+              description: Put undelivered notifications back into the send queue.
+              responses:
+                  200:
+                      description: The undelivered notifications have been requeued.
+                      headers:
+                          Keep-Alive:
+                  401:
+                      description: The request does not contain a token.
+                  403:
+                      description: The request is invalid.
+                      body:
+                          application/json:
+                              schema: localizedMessage
   /userContactDetails:
       displayName: User Contact Details
       get:
