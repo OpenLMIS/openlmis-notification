@@ -99,6 +99,7 @@ public class UserContactDetailsControllerIntegrationTest extends BaseWebIntegrat
 
   private static final String ID = "id";
   private static final String TOKEN = "token";
+  private static final String MESSAGE = "message";
 
 
   @MockBean
@@ -342,14 +343,13 @@ public class UserContactDetailsControllerIntegrationTest extends BaseWebIntegrat
     UserContactDetailsDto request = toDto(userContactDetails);
     request.getEmailDetails().setEmailVerified(!userContactDetails.isEmailAddressVerified());
 
-    String response = put(request, request.getReferenceDataUserId())
+    put(request, request.getReferenceDataUserId())
         .then()
         .statusCode(400)
-        .extract()
-        .path(MESSAGE_KEY);
+        .body(MESSAGE_KEY, is(ERROR_FIELD_IS_INVARIANT))
+        .body(MESSAGE, is(EMAIL_VERIFIED + " is an invariant and should not be changed."));
 
     assertThat(RAML_ASSERT_MESSAGE, restAssured.getLastReport(), RamlMatchers.hasNoViolations());
-    assertThat(response, containsString(ERROR_FIELD_IS_INVARIANT));
 
     verify(userContactDetailsRepository, never()).save(any(UserContactDetails.class));
     verify(permissionService)
@@ -382,14 +382,13 @@ public class UserContactDetailsControllerIntegrationTest extends BaseWebIntegrat
     markDtoAsInvalid(EMAIL, ERROR_EMAIL_INVALID);
 
     UserContactDetailsDto request = toDto(userContactDetails);
-    String response = put(request, request.getReferenceDataUserId())
+    put(request, request.getReferenceDataUserId())
         .then()
         .statusCode(400)
-        .extract()
-        .path(MESSAGE_KEY);
+        .body(MESSAGE_KEY, is(ERROR_EMAIL_INVALID))
+        .body(MESSAGE, is("The given email address is invalid."));
 
     assertThat(RAML_ASSERT_MESSAGE, restAssured.getLastReport(), RamlMatchers.hasNoViolations());
-    assertThat(response, containsString(ERROR_EMAIL_INVALID));
 
     verify(userContactDetailsRepository, never()).save(any(UserContactDetails.class));
     verify(permissionService)

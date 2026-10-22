@@ -54,6 +54,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.MultiValueMap;
 import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -167,7 +168,8 @@ public class UserContactDetailsController {
 
     validator.validate(userContactDetailsDto, bindingResult);
     if (bindingResult.getErrorCount() > 0) {
-      throw new ValidationException(bindingResult.getFieldError().getDefaultMessage());
+      FieldError fieldError = bindingResult.getFieldError();
+      throw new ValidationException(fieldError.getDefaultMessage(), fieldError.getField());
     }
 
     UserContactDetails contactDetails = UserContactDetails
