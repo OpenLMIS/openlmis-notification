@@ -79,6 +79,9 @@ public class DigestionService {
   @Autowired
   private BeanFactory beanFactory;
 
+  @Autowired
+  private PendingNotificationRetryErrorHandler errorHandler;
+
   private Table<UUID, String, SourcePollingChannelAdapter> adapters;
 
   public DigestionService() {
@@ -134,6 +137,7 @@ public class DigestionService {
 
     adapter.setAdviceChain(Lists.newArrayList(new TransactionInterceptor(
         transactionManager, new MatchAlwaysTransactionAttributeSource())));
+    adapter.setErrorHandler(errorHandler);
 
     adapter.setTrigger(new CronTrigger(cronExpression, TimeZone.getTimeZone(timeZoneId)));
     adapter.setBeanFactory(beanFactory);

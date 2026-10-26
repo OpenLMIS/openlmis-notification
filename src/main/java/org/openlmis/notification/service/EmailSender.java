@@ -60,12 +60,9 @@ class EmailSender {
       profiler.stop().log();
       XLOGGER.exit();
     } catch (Exception exp) {
-      ServerException exception = new ServerException(exp, ERROR_SEND_MAIL_FAILURE);
-
-      XLOGGER.throwing(exception);
       profiler.stop().log();
 
-      throw exception;
+      throw new ServerException(exp, ERROR_SEND_MAIL_FAILURE);
     }
   }
 
