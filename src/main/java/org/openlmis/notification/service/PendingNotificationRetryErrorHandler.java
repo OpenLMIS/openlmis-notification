@@ -48,6 +48,9 @@ public class PendingNotificationRetryErrorHandler implements ErrorHandler {
   private static final Logger LOGGER =
       LoggerFactory.getLogger(PendingNotificationRetryErrorHandler.class);
 
+  // Keeps a bookkeeping failure from using up the trace allowance of a same-type flow failure.
+  private static final String BOOKKEEPING_TRACE_KEY_PREFIX = "bookkeeping:";
+
   private final PendingNotificationRetryService retryService;
   private final TraceRateLimiter traceLimiter;
 
@@ -77,7 +80,7 @@ public class PendingNotificationRetryErrorHandler implements ErrorHandler {
     } catch (RuntimeException ex) {
       String message = "Notification flow failed: {}, and recording the failure failed: {}";
 
-      if (traceLimiter.allow(ex.getClass().getName())) {
+      if (traceLimiter.allow(BOOKKEEPING_TRACE_KEY_PREFIX + ex.getClass().getName())) {
         LOGGER.error(message, description, ex.toString(), ex);
       } else {
         LOGGER.warn(message, description, ex.toString());
