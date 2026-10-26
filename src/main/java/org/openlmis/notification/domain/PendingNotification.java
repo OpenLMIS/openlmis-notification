@@ -16,6 +16,7 @@
 package org.openlmis.notification.domain;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 import javax.persistence.Column;
@@ -69,6 +70,15 @@ public class PendingNotification implements Identifiable<PendingNotificationId> 
   @Getter
   private ZonedDateTime createdDate;
 
+  @Column(nullable = false)
+  private int retryCount;
+
+  @Column(columnDefinition = "timestamp with time zone", nullable = false)
+  private ZonedDateTime retryAt;
+
+  @Column(columnDefinition = "text")
+  private String lastError;
+
   /**
    * Creates a new instance based on passed parameters.
    */
@@ -76,6 +86,8 @@ public class PendingNotification implements Identifiable<PendingNotificationId> 
     this.id = new PendingNotificationId(notification.getId(), channel);
     this.notification = notification;
     this.createdDate = ZonedDateTime.now();
+    this.retryCount = 0;
+    this.retryAt = this.createdDate;
   }
 
   public UUID getNotificationId() {
@@ -84,6 +96,19 @@ public class PendingNotification implements Identifiable<PendingNotificationId> 
 
   public NotificationChannel getChannel() {
     return id.channel;
+  }
+
+  /**
+   * Counts a failed delivery attempt and postpones the next one.
+   */
+  public void recordFailedAttempt(ZonedDateTime nextAttemptAt, String error) {
+    this.retryCount++;
+    this.retryAt = nextAttemptAt;
+    this.lastError = error;
+  }
+
+  public boolean isOlderThan(Duration maxAge, ZonedDateTime now) {
+    return createdDate.plus(maxAge).isBefore(now);
   }
 
   @Embeddable
