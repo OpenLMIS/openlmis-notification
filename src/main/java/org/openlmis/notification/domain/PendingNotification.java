@@ -52,7 +52,7 @@ import org.openlmis.notification.service.NotificationChannel;
             + " FROM PendingNotification p"
             + " INNER JOIN FETCH p.notification"
             + " WHERE p.retryAt <= :now"
-            + " ORDER BY p.retryAt ASC, p.createdDate ASC")
+            + " ORDER BY p.retryCount ASC, p.retryAt ASC, p.createdDate ASC")
 })
 public class PendingNotification implements Identifiable<PendingNotificationId> {
 
