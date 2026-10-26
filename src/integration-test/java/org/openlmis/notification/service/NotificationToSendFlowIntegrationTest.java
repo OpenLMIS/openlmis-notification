@@ -379,7 +379,16 @@ public class NotificationToSendFlowIntegrationTest {
       pendingNotificationRepository.saveAll(pendingEmailNotifications);
 
       entityManager.flush();
+      makePendingNotificationsDue();
       entityManager.clear();
+    }
+
+    // The poller only picks rows that are due, and CURRENT_TIMESTAMP is the transaction start.
+    private void makePendingNotificationsDue() {
+      entityManager
+          .createNativeQuery("UPDATE notification.pending_notifications"
+              + " SET retryat = now() - INTERVAL '1 minute'")
+          .executeUpdate();
     }
 
     private void createEmailNotifications() {

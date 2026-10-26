@@ -171,6 +171,20 @@ public class PermissionServiceTest {
     permissionService.canSendNotification();
   }
 
+  @Test
+  public void shouldNotAllowToRetryUndeliveredNotificationsForUserLevelToken() {
+    when(securityContext.getAuthentication()).thenReturn(userAuthentication);
+    expectGenericException();
+
+    permissionService.canRetryUndeliveredNotifications();
+  }
+
+  @Test
+  public void shouldAllowToRetryUndeliveredNotificationsForServiceLevelToken() {
+    when(securityContext.getAuthentication()).thenReturn(serviceAuthentication);
+    permissionService.canRetryUndeliveredNotifications();
+  }
+
   private void expectException() {
     exception.expect(MissingPermissionException.class);
     exception.expect(hasProperty("params", arrayContaining(USERS_MANAGE)));

@@ -50,7 +50,9 @@ import org.openlmis.notification.service.NotificationChannel;
         query = "SELECT p"
             + " FROM PendingNotification p"
             + " INNER JOIN FETCH p.notification"
-            + " ORDER BY p.createdDate ASC")
+            + " WHERE p.undelivered = FALSE"
+            + " AND p.retryAt <= CURRENT_TIMESTAMP"
+            + " ORDER BY p.retryAt ASC, p.createdDate ASC")
 })
 public class PendingNotification implements Identifiable<PendingNotificationId> {
 
@@ -70,12 +72,45 @@ public class PendingNotification implements Identifiable<PendingNotificationId> 
   private ZonedDateTime createdDate;
 
   /**
+   * Delivery attempts that have already failed. Zero for a notification not yet tried.
+   */
+  @Column(nullable = false)
+  private int retryCount;
+
+  /**
+   * Earliest point at which this notification may be polled again, pushed out by the back-off
+   * after each failed attempt so a failing notification does not block the queue.
+   */
+  @Column(columnDefinition = "timestamp with time zone", nullable = false)
+  private ZonedDateTime retryAt;
+
+  /**
+   * Set once the attempt budget is used up. Skipped by the poller and kept for inspection or
+   * retrying instead of being discarded.
+   */
+  @Column(nullable = false)
+  private boolean undelivered;
+
+  @Column(columnDefinition = "timestamp with time zone")
+  private ZonedDateTime undeliveredAt;
+
+  /**
+   * Summary of the most recent failure, so an undelivered notification explains itself without
+   * having to correlate it with the logs.
+   */
+  @Column(columnDefinition = "text")
+  private String lastError;
+
+  /**
    * Creates a new instance based on passed parameters.
    */
   public PendingNotification(Notification notification, NotificationChannel channel) {
     this.id = new PendingNotificationId(notification.getId(), channel);
     this.notification = notification;
     this.createdDate = ZonedDateTime.now();
+    this.retryCount = 0;
+    this.retryAt = this.createdDate;
+    this.undelivered = false;
   }
 
   public UUID getNotificationId() {
