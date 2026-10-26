@@ -131,6 +131,19 @@ public class PendingNotificationRepositoryIntegrationTest
         .containsExactlyElementsOf(ids(rotateFirstToLast(pendingNotifications)));
   }
 
+  @Test
+  public void shouldPollNewPendingNotificationsAheadOfFailingOnes() {
+    ZonedDateTime now = ZonedDateTime.now();
+    PendingNotification failing = pendingNotifications.get(0);
+    failing.recordFailedAttempt(now.minusSeconds(60), "x");
+    repository.saveAndFlush(failing);
+    entityManager.clear();
+
+    assertThat(findDue(now))
+        .extracting(PendingNotification::getId)
+        .containsExactlyElementsOf(ids(rotateFirstToLast(pendingNotifications)));
+  }
+
   private List<PendingNotification> findDue(ZonedDateTime now) {
     return entityManager
         .createNamedQuery(PendingNotification.GET_PENDING_NOTIFICATIONS_NAMED_QUERY,

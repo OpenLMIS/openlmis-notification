@@ -12,4 +12,4 @@ ALTER TABLE pending_notifications
   ADD COLUMN lasterror TEXT;
 
 CREATE INDEX pending_notifications_due_idx
-  ON pending_notifications (retryat, createddate);
+  ON pending_notifications (retrycount, retryat, createddate);
