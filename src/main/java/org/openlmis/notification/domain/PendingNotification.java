@@ -51,12 +51,14 @@ import org.openlmis.notification.service.NotificationChannel;
         query = "SELECT p"
             + " FROM PendingNotification p"
             + " INNER JOIN FETCH p.notification"
-            + " ORDER BY p.createdDate ASC")
+            + " WHERE p.retryAt <= :now"
+            + " ORDER BY p.retryAt ASC, p.createdDate ASC")
 })
 public class PendingNotification implements Identifiable<PendingNotificationId> {
 
   public static final String GET_PENDING_NOTIFICATIONS_NAMED_QUERY =
       "PendingNotification.getPendingNotifications";
+  public static final String NOW_PARAMETER = "now";
 
   @EmbeddedId
   private PendingNotificationId id;
