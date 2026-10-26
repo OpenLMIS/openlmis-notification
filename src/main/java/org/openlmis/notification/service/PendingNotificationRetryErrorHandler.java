@@ -70,7 +70,7 @@ public class PendingNotificationRetryErrorHandler implements ErrorHandler {
     Throwable rootCause = ExceptionUtils.getRootCause(throwable);
     Throwable root = null == rootCause ? throwable : rootCause;
 
-    String description = root.toString();
+    String description = PendingNotificationRetryService.describe(root);
 
     try {
       recordFailure(throwable, root, description);

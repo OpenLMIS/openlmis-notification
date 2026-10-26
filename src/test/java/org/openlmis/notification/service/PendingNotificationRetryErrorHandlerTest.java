@@ -107,6 +107,23 @@ public class PendingNotificationRetryErrorHandlerTest {
   }
 
   @Test
+  public void shouldLogFailedAttemptOnOneLine() {
+    // given
+    given(retryService.recordFailure(any(), any(), any())).willReturn(pending);
+
+    // when
+    errorHandler.handleError(new MessagingException(
+        messageWith(CHANNEL_TO_USE_HEADER, EMAIL),
+        new IllegalStateException("<html>\n<head><title>502 Bad Gateway</title></head>\n</html>")));
+
+    // then
+    assertThat(appender.list).hasSize(1);
+    assertThat(appender.list.get(0).getFormattedMessage())
+        .doesNotContain("\n")
+        .endsWith("<html> <head><title>502 Bad Gateway</title></head> </html>");
+  }
+
+  @Test
   public void shouldReadChannelHeaderSetByTransformer() {
     // given
     given(retryService.recordFailure(any(), any(), any())).willReturn(pending);

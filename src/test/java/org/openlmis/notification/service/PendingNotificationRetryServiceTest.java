@@ -112,6 +112,21 @@ public class PendingNotificationRetryServiceTest {
   }
 
   @Test
+  public void shouldStoreErrorOnOneLine() {
+    // given
+    given(repository.findById(pending.getId())).willReturn(Optional.of(pending));
+    given(repository.save(any(PendingNotification.class))).willAnswer(returnsFirstArg());
+
+    // when
+    PendingNotification updated = service.recordFailure(pending.getNotificationId(), EMAIL,
+        new MailSendException("Failed messages:\n  nested exception is:\n\t550 mailbox"));
+
+    // then
+    assertThat(updated.getLastError()).isEqualTo("org.springframework.mail.MailSendException:"
+        + " Failed messages: nested exception is: 550 mailbox");
+  }
+
+  @Test
   public void shouldAbbreviateLongErrors() {
     // given
     given(repository.findById(pending.getId())).willReturn(Optional.of(pending));
