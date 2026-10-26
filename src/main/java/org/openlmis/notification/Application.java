@@ -24,6 +24,7 @@ import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.callback.Callback;
 import org.openlmis.notification.domain.Identifiable;
 import org.openlmis.notification.i18n.ExposedMessageSourceImpl;
+import org.openlmis.notification.service.PendingNotificationRetryErrorHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -114,7 +115,8 @@ public class Application {
    * Creates a metadata that will be used to create a default poller.
    */
   @Bean(name = PollerMetadata.DEFAULT_POLLER)
-  public PollerMetadata defaultPoller(PlatformTransactionManager transactionManager) {
+  public PollerMetadata defaultPoller(PlatformTransactionManager transactionManager,
+      PendingNotificationRetryErrorHandler errorHandler) {
     List<Advice> adviceChain = Lists.newArrayList();
     adviceChain.add(new TransactionInterceptor(transactionManager,
         new MatchAlwaysTransactionAttributeSource()));
@@ -126,6 +128,7 @@ public class Application {
     PollerMetadata metadata = new PollerMetadata();
     metadata.setAdviceChain(adviceChain);
     metadata.setTrigger(trigger);
+    metadata.setErrorHandler(errorHandler);
 
     return metadata;
   }
