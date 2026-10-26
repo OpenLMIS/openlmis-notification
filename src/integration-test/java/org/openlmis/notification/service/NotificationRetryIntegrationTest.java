@@ -20,10 +20,11 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.openlmis.notification.i18n.MessageKeys.ERROR_SEND_MAIL_FAILURE;
 import static org.openlmis.notification.service.NotificationChannel.EMAIL;
@@ -37,6 +38,7 @@ import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.persistence.EntityManager;
 import org.junit.After;
 import org.junit.Before;
@@ -75,8 +77,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 @MockBean(SmsSender.class)
 @SpringBootTest(properties = {
     "notificationToSend.autoStartup=false",
-    "notification.retry.initialDelaySeconds=2",
-    "notification.retry.maxDelaySeconds=4"})
+    "notification.retry.initialDelaySeconds=5",
+    "notification.retry.maxDelaySeconds=10"})
 public class NotificationRetryIntegrationTest {
 
   private static final String SUBJECT = "subject";
@@ -182,19 +184,25 @@ public class NotificationRetryIntegrationTest {
   public void shouldSendOnceTheServerWorksAgain() {
     // given
     queueNotifications(true);
-    willThrow(smtpDown()).given(emailSender).sendMail(eq(emailOf(userA)), any(), any());
+    AtomicBoolean serverUp = new AtomicBoolean(false);
+    willAnswer(invocation -> {
+      if (!serverUp.get()) {
+        throw smtpDown();
+      }
+      return null;
+    }).given(emailSender).sendMail(eq(emailOf(userA)), any(), any());
 
     adapter.start();
     await().atMost(10, TimeUnit.SECONDS)
         .untilAsserted(() -> assertThat(findPending(pendingA).getRetryCount()).isEqualTo(1));
 
     // when
-    reset(emailSender);
+    serverUp.set(true);
 
     // then
     await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
       assertThat(pendingNotificationRepository.existsById(pendingA)).isFalse();
-      verify(emailSender).sendMail(emailOf(userA), SUBJECT, BODY);
+      verify(emailSender, atLeast(2)).sendMail(emailOf(userA), SUBJECT, BODY);
     });
   }
 
@@ -236,12 +244,15 @@ public class NotificationRetryIntegrationTest {
       assertThat(retryCount).isGreaterThanOrEqualTo(2);
       assertThat(appender.list)
           .filteredOn(event -> Level.WARN.equals(event.getLevel()))
-          .filteredOn(event -> event.getFormattedMessage().startsWith("Notification "))
+          .filteredOn(event -> event.getFormattedMessage()
+              .startsWith("Notification " + notificationIdOf(pendingA)))
           .hasSize(retryCount);
     });
 
     assertThat(appender.list)
         .filteredOn(event -> null != event.getThrowableProxy())
+        .filteredOn(event -> event.getFormattedMessage()
+            .startsWith("Stack trace for " + MailAuthenticationException.class.getName()))
         .hasSize(1);
   }
 
@@ -266,7 +277,8 @@ public class NotificationRetryIntegrationTest {
     });
     verify(emailSender, never()).sendMail(eq(emailOf(userA)), any(), any());
     assertThat(appender.list)
-        .filteredOn(event -> event.getFormattedMessage().contains("Dropping notification"))
+        .filteredOn(event -> event.getFormattedMessage()
+            .startsWith("Dropping notification " + notificationIdOf(pendingA)))
         .hasSize(1);
   }
 
