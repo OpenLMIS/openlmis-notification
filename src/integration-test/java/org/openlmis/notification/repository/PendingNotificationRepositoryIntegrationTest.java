@@ -36,6 +36,7 @@ import org.openlmis.notification.testutils.PendingNotificationDataBuilder;
 import org.openlmis.notification.util.NotificationDataBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.repository.CrudRepository;
+import org.springframework.test.util.ReflectionTestUtils;
 
 public class PendingNotificationRepositoryIntegrationTest
     extends BaseCrudRepositoryIntegrationTest<PendingNotification, PendingNotificationId> {
@@ -117,6 +118,7 @@ public class PendingNotificationRepositoryIntegrationTest
   @Test
   public void shouldPollOnlyDuePendingNotificationsInDueOrder() {
     ZonedDateTime now = ZonedDateTime.now();
+    spreadQueueTimes(now);
     PendingNotification postponed = pendingNotifications.get(0);
     postponed.recordFailedAttempt(now.plusSeconds(60), "x");
     repository.saveAndFlush(postponed);
@@ -134,14 +136,26 @@ public class PendingNotificationRepositoryIntegrationTest
   @Test
   public void shouldPollNewPendingNotificationsAheadOfFailingOnes() {
     ZonedDateTime now = ZonedDateTime.now();
+    spreadQueueTimes(now);
     PendingNotification failing = pendingNotifications.get(0);
-    failing.recordFailedAttempt(now.minusSeconds(60), "x");
+    failing.recordFailedAttempt(now.minusMinutes(COUNT + 1L), "x");
     repository.saveAndFlush(failing);
     entityManager.clear();
 
     assertThat(findDue(now))
         .extracting(PendingNotification::getId)
         .containsExactlyElementsOf(ids(rotateFirstToLast(pendingNotifications)));
+  }
+
+  // Rows saved back to back can share a millisecond, which would leave their order to the database.
+  private void spreadQueueTimes(ZonedDateTime now) {
+    for (int idx = 0; idx < COUNT; ++idx) {
+      PendingNotification pending = pendingNotifications.get(idx);
+      ZonedDateTime queuedAt = now.minusMinutes(COUNT - idx);
+      ReflectionTestUtils.setField(pending, "createdDate", queuedAt);
+      ReflectionTestUtils.setField(pending, "retryAt", queuedAt);
+      repository.saveAndFlush(pending);
+    }
   }
 
   private List<PendingNotification> findDue(ZonedDateTime now) {
