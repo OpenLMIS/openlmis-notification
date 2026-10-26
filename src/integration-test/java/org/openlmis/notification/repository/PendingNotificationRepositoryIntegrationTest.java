@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -111,6 +112,41 @@ public class PendingNotificationRepositoryIntegrationTest
     assertThat(found.getRetryCount()).isEqualTo(1);
     assertThat(found.getRetryAt().toInstant()).isEqualTo(retryAt.toInstant());
     assertThat(found.getLastError()).isEqualTo("x");
+  }
+
+  @Test
+  public void shouldPollOnlyDuePendingNotificationsInDueOrder() {
+    ZonedDateTime now = ZonedDateTime.now();
+    PendingNotification postponed = pendingNotifications.get(0);
+    postponed.recordFailedAttempt(now.plusSeconds(60), "x");
+    repository.saveAndFlush(postponed);
+    entityManager.clear();
+
+    assertThat(findDue(now))
+        .extracting(PendingNotification::getId)
+        .containsExactlyElementsOf(ids(pendingNotifications.subList(1, COUNT)));
+
+    assertThat(findDue(now.plusSeconds(120)))
+        .extracting(PendingNotification::getId)
+        .containsExactlyElementsOf(ids(rotateFirstToLast(pendingNotifications)));
+  }
+
+  private List<PendingNotification> findDue(ZonedDateTime now) {
+    return entityManager
+        .createNamedQuery(PendingNotification.GET_PENDING_NOTIFICATIONS_NAMED_QUERY,
+            PendingNotification.class)
+        .setParameter(PendingNotification.NOW_PARAMETER, now)
+        .getResultList();
+  }
+
+  private List<PendingNotificationId> ids(List<PendingNotification> list) {
+    return list.stream().map(PendingNotification::getId).collect(Collectors.toList());
+  }
+
+  private List<PendingNotification> rotateFirstToLast(List<PendingNotification> list) {
+    List<PendingNotification> rotated = new ArrayList<>(list.subList(1, list.size()));
+    rotated.add(list.get(0));
+    return rotated;
   }
 
 }

@@ -16,26 +16,38 @@
 package org.openlmis.notification.service;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.time.Duration;
+import java.time.ZonedDateTime;
 import javax.persistence.EntityManager;
 import org.openlmis.notification.domain.Notification;
 import org.openlmis.notification.domain.PendingNotification;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.integration.annotation.InboundChannelAdapter;
 import org.springframework.integration.annotation.MessageEndpoint;
 import org.springframework.integration.jpa.core.JpaExecutor;
+import org.springframework.integration.jpa.support.parametersource.ParameterSource;
 import org.springframework.integration.support.MessageBuilder;
 import org.springframework.messaging.Message;
 
 @MessageEndpoint
 public class NotificationToSendRetriever {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(NotificationToSendRetriever.class);
+
   static final String START_CHANNEL = "notificationToSend.start";
 
   static final String RECIPIENT_HEADER = "recipient";
   static final String IMPORTANT_HEADER = "important";
   static final String CHANNEL_TO_USE_HEADER = "channelToUse";
+  static final String NOTIFICATION_ID_HEADER = "notificationId";
 
   private JpaExecutor jpaExecutor;
+
+  @Value("${notification.retry.maxAgeHours}")
+  private long maxAgeHours;
 
   @Autowired
   public NotificationToSendRetriever(EntityManager entityManager) {
@@ -61,6 +73,16 @@ public class NotificationToSendRetriever {
     }
 
     PendingNotification pending = (PendingNotification) item;
+
+    // The poll has already deleted the row; returning null lets that delete commit.
+    if (pending.isOlderThan(Duration.ofHours(maxAgeHours), ZonedDateTime.now())) {
+      LOGGER.warn("Dropping notification {} via {}: queued {}, older than {} h,"
+              + " {} failed attempts, last error: {}",
+          pending.getNotificationId(), pending.getChannel(), pending.getCreatedDate(),
+          maxAgeHours, pending.getRetryCount(), pending.getLastError());
+      return null;
+    }
+
     Notification notification = pending.getNotification();
 
     return MessageBuilder
@@ -68,6 +90,7 @@ public class NotificationToSendRetriever {
         .setHeader(RECIPIENT_HEADER, notification.getUserId())
         .setHeader(IMPORTANT_HEADER, notification.getImportant())
         .setHeader(CHANNEL_TO_USE_HEADER, pending.getChannel())
+        .setHeader(NOTIFICATION_ID_HEADER, notification.getId())
         .build();
   }
 
@@ -80,10 +103,23 @@ public class NotificationToSendRetriever {
     jpaExecutor.setExpectSingleResult(true);
     jpaExecutor.setMaxNumberOfResults(1);
 
-    jpaExecutor.setUsePayloadAsParameterSource(true);
+    jpaExecutor.setParameterSource(new NowParameterSource());
 
     jpaExecutor.setDeleteAfterPoll(true);
     jpaExecutor.setFlush(true);
     jpaExecutor.setClearOnFlush(true);
+  }
+
+  private static final class NowParameterSource implements ParameterSource {
+
+    @Override
+    public boolean hasValue(String paramName) {
+      return PendingNotification.NOW_PARAMETER.equals(paramName);
+    }
+
+    @Override
+    public Object getValue(String paramName) {
+      return ZonedDateTime.now();
+    }
   }
 }
