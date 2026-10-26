@@ -74,11 +74,6 @@ public class PendingNotificationRetryErrorHandler implements ErrorHandler {
 
     try {
       recordFailure(throwable, root, description);
-
-      if (traceLimiter.allow(root.getClass().getName())) {
-        LOGGER.error("Stack trace for {}, logged at most once per {} s",
-            root.getClass().getName(), traceLimiter.getInterval().getSeconds(), throwable);
-      }
     } catch (RuntimeException ex) {
       String message = "Notification flow failed: {}, and recording the failure failed: {}";
 
@@ -87,6 +82,11 @@ public class PendingNotificationRetryErrorHandler implements ErrorHandler {
       } else {
         LOGGER.warn(message, description, ex.toString());
       }
+    }
+
+    if (traceLimiter.allow(root.getClass().getName())) {
+      LOGGER.error("Stack trace for {}, logged at most once per {} s",
+          root.getClass().getName(), traceLimiter.getInterval().getSeconds(), throwable);
     }
   }
 

@@ -50,6 +50,7 @@ import org.springframework.integration.support.MessageBuilder;
 import org.springframework.mail.MailSendException;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessagingException;
+import org.springframework.transaction.CannotCreateTransactionException;
 
 public class PendingNotificationRetryErrorHandlerTest {
 
@@ -184,6 +185,27 @@ public class PendingNotificationRetryErrorHandlerTest {
     assertThat(appender.list.get(0).getFormattedMessage())
         .contains("smtp down")
         .contains("bookkeeping failed");
+  }
+
+  @Test
+  public void shouldLogOriginalTraceWhenBookkeepingFails() {
+    // given
+    given(retryService.recordFailure(any(), any(), any()))
+        .willThrow(new CannotCreateTransactionException("no connection"));
+    given(traceLimiter.allow(MailSendException.class.getName())).willReturn(true);
+    given(traceLimiter.getInterval()).willReturn(Duration.ofMinutes(10));
+
+    // when
+    errorHandler.handleError(new MessagingException(
+        messageWith(CHANNEL_TO_USE_HEADER, EMAIL),
+        new ServerException(new MailSendException("x"), ERROR_SEND_MAIL_FAILURE)));
+
+    // then
+    assertThat(appender.list)
+        .filteredOn(event -> null != event.getThrowableProxy())
+        .hasSize(1)
+        .allMatch(event -> event.getFormattedMessage()
+            .startsWith("Stack trace for " + MailSendException.class.getName()));
   }
 
   private Message<String> messageWith(String channelHeader, NotificationChannel channel) {
