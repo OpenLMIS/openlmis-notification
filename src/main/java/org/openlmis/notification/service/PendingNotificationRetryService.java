@@ -72,8 +72,13 @@ public class PendingNotificationRetryService {
     return Duration.ofSeconds(Math.min(initialDelaySeconds << exponent, maxDelaySeconds));
   }
 
-  private static String describe(Throwable rootCause) {
-    return StringUtils.abbreviate(rootCause.toString(), MAX_LAST_ERROR_LENGTH);
+  /**
+   * One-line summary of a failure for the log and the queued row. Exception messages often span
+   * lines (nested mail exceptions, HTML error pages), which line-based log shipping would split.
+   */
+  static String describe(Throwable rootCause) {
+    return StringUtils.abbreviate(
+        StringUtils.normalizeSpace(rootCause.toString()), MAX_LAST_ERROR_LENGTH);
   }
 
 }
