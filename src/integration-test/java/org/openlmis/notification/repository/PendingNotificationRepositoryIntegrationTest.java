@@ -16,6 +16,7 @@
 package org.openlmis.notification.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
@@ -26,6 +27,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.persistence.EntityManager;
+import javax.persistence.PersistenceException;
 import org.junit.Before;
 import org.junit.Test;
 import org.openlmis.notification.domain.Notification;
@@ -38,6 +40,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.test.util.ReflectionTestUtils;
 
+@SuppressWarnings("PMD.TooManyMethods")
 public class PendingNotificationRepositoryIntegrationTest
     extends BaseCrudRepositoryIntegrationTest<PendingNotification, PendingNotificationId> {
 
@@ -145,6 +148,18 @@ public class PendingNotificationRepositoryIntegrationTest
     assertThat(findDue(now))
         .extracting(PendingNotification::getId)
         .containsExactlyElementsOf(ids(rotateFirstToLast(pendingNotifications)));
+  }
+
+  @Test
+  public void shouldRejectPendingNotificationWithoutCreatedDate() {
+    UUID notificationId = pendingNotifications.get(0).getNotificationId();
+
+    assertThatThrownBy(() -> entityManager
+        .createNativeQuery("INSERT INTO notification.pending_notifications"
+            + " (notificationid, channel, createddate) VALUES (:id, 'SMS', NULL)")
+        .setParameter("id", notificationId)
+        .executeUpdate())
+        .isInstanceOf(PersistenceException.class);
   }
 
   // Rows saved back to back can share a millisecond, which would leave their order to the database.

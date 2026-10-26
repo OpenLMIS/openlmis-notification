@@ -11,5 +11,10 @@ ALTER TABLE pending_notifications
 ALTER TABLE pending_notifications
   ADD COLUMN lasterror TEXT;
 
+UPDATE pending_notifications SET createddate = now() WHERE createddate IS NULL;
+
+ALTER TABLE pending_notifications
+  ALTER COLUMN createddate SET NOT NULL;
+
 CREATE INDEX pending_notifications_due_idx
   ON pending_notifications (retrycount, retryat, createddate);
