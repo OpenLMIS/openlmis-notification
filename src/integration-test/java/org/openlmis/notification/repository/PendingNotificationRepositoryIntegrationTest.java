@@ -17,6 +17,8 @@ package org.openlmis.notification.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -93,6 +95,22 @@ public class PendingNotificationRepositoryIntegrationTest
 
     boolean notificationExists = notificationRepository.existsById(notificationId);
     assertThat(notificationExists).isTrue();
+  }
+
+  @Test
+  public void shouldPersistRetryTracking() {
+    PendingNotification pending = pendingNotifications.get(0);
+    ZonedDateTime retryAt = ZonedDateTime.now().plusSeconds(60).truncatedTo(ChronoUnit.MILLIS);
+
+    pending.recordFailedAttempt(retryAt, "x");
+    repository.saveAndFlush(pending);
+    entityManager.clear();
+
+    PendingNotification found = repository.findById(pending.getId()).orElse(null);
+    assertThat(found).isNotNull();
+    assertThat(found.getRetryCount()).isEqualTo(1);
+    assertThat(found.getRetryAt().toInstant()).isEqualTo(retryAt.toInstant());
+    assertThat(found.getLastError()).isEqualTo("x");
   }
 
 }
