@@ -33,6 +33,7 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.UUID;
@@ -52,6 +53,7 @@ import org.springframework.messaging.Message;
 import org.springframework.messaging.MessagingException;
 import org.springframework.transaction.CannotCreateTransactionException;
 
+@SuppressWarnings("PMD.TooManyMethods")
 public class PendingNotificationRetryErrorHandlerTest {
 
   @Rule
@@ -223,6 +225,24 @@ public class PendingNotificationRetryErrorHandlerTest {
         .hasSize(1)
         .allMatch(event -> event.getFormattedMessage()
             .startsWith("Stack trace for " + MailSendException.class.getName()));
+  }
+
+  @Test
+  public void shouldLogBothTracesWhenBookkeepingFailsWithTheSameType() {
+    // given
+    errorHandler = new PendingNotificationRetryErrorHandler(retryService,
+        new TraceRateLimiter(Duration.ofMinutes(10), Clock.systemUTC()));
+    given(retryService.recordFailure(any(), any(), any()))
+        .willThrow(new IllegalStateException("bookkeeping failed"));
+
+    // when
+    errorHandler.handleError(new MessagingException(
+        messageWith(CHANNEL_TO_USE_HEADER, EMAIL), new IllegalStateException("smtp down")));
+
+    // then
+    assertThat(appender.list)
+        .filteredOn(event -> null != event.getThrowableProxy())
+        .hasSize(2);
   }
 
   private Message<String> messageWith(String channelHeader, NotificationChannel channel) {
