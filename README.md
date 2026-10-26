@@ -77,6 +77,15 @@ This service also uses the following variables:
 * **MAIL_USERNAME** - The SMTP username to use for sending outgoing email. Usually required by the SMTP server.  
 * **MAIL_PASSWORD** - The SMTP password to use for sending outgoing email. Usually required by the SMTP server.
 * **MAIL_ADDRESS** - The sender email address that will be used for sending all outgoing email messages (the from-address field). For example set it to noreply@mydomain.org in order for users to see that as the sender of the email they receive. Note that some email providers (like Gmail) might overwrite this value with details from your account.   
+* **MAIL_SMTP_CONNECTION_TIMEOUT_MS** - How long to wait for a connection to the SMTP server, in milliseconds. The default is 30000.
+* **MAIL_SMTP_TIMEOUT_MS** - How long to wait for the SMTP server to answer, in milliseconds. The default is 60000.
+* **MAIL_SMTP_WRITE_TIMEOUT_MS** - How long a write to the SMTP server may take, in milliseconds. The default is 60000.
+* **NOTIFICATION_RETRY_INITIAL_DELAY_SECONDS** - The delay before the first retry of a notification whose delivery failed, in seconds. The default is 60.
+* **NOTIFICATION_RETRY_MAX_DELAY_SECONDS** - The longest delay between two retries of the same notification, in seconds. The default is 960.
+* **NOTIFICATION_RETRY_MAX_AGE_HOURS** - A queued notification older than this is dropped instead of sent, whether or not it was tried before, in hours. The default is 168.
+* **NOTIFICATION_RETRY_TRACE_INTERVAL_SECONDS** - A full stack trace for a failed delivery is logged at most once per error type within this interval, in seconds. The default is 600.
+
+**Delivery retries.** When a queued notification fails at any step of sending, for example because the SMTP server or the reference data service is unavailable, it stays queued and is retried later. The delay starts at NOTIFICATION_RETRY_INITIAL_DELAY_SECONDS and doubles after each failure up to NOTIFICATION_RETRY_MAX_DELAY_SECONDS. New notifications go out ahead of ones that have failed before. Each failed attempt logs one line, and a full stack trace is added at most once per error type within NOTIFICATION_RETRY_TRACE_INTERVAL_SECONDS. A notification older than NOTIFICATION_RETRY_MAX_AGE_HOURS is dropped with one log line. Mail queued during an outage goes out by itself once the server works again. A digest that fails to send is not delayed this way; it is tried again at its next scheduled time.
 
 See [SMS integration](#sms-integration) below for environment variables for SMS integration.
 
