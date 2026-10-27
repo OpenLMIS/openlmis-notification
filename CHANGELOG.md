@@ -1,6 +1,9 @@
 4.5.2-SNAPSHOT (WIP)
 ==================
 
+Improvements:
+* [OLMIS-8425](https://openlmis.atlassian.net/browse/OLMIS-8425): The new MAIL_SMTP_SECURITY variable lets the service send through an SMTP server that offers STARTTLS, usually on port 587 or 25. With `starttls` the upgrade is required, so mail is never sent in plain text. The default, `ssl`, connects with implicit TLS as before, so existing deployments need no change. An explicit `spring.mail.properties.mail.smtp.socketFactory.class` in JAVA_OPTS is still honoured in `ssl` mode.
+
 Bug fixes:
 * [OLMIS-8380](https://openlmis.atlassian.net/browse/OLMIS-8380): The 400 returned by PUT /api/userContactDetails/{id} when the request changes the email verification status now names the field, instead of showing an unfilled {0} placeholder.
 
