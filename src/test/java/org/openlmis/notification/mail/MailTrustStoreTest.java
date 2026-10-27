@@ -152,6 +152,18 @@ public class MailTrustStoreTest {
   }
 
   @Test
+  public void shouldTrimPath() throws Exception {
+    // given
+    MailTrustStore trustStore = new MailTrustStore(file(testCertificate()) + " ", PEM, "", "0");
+
+    // when
+    trustStore.install();
+
+    // then
+    assertThat(subjects(trustStore.getAcceptedIssuers())).contains(TEST_SUBJECT);
+  }
+
+  @Test
   public void shouldFailOnUnknownType() {
     // then
     exception.expect(IllegalArgumentException.class);

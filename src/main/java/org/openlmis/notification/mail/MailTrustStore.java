@@ -108,7 +108,7 @@ public class MailTrustStore {
       return;
     }
 
-    file = Paths.get(path);
+    file = Paths.get(path.trim());
     try {
       defaults = TrustStoreLoader.jvmDefaultAnchors();
       trustManager.set(TrustStoreLoader.trustManagerFor(defaults));
