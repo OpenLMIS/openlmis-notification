@@ -18,6 +18,7 @@ package org.openlmis.notification;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import javax.net.ssl.SSLException;
 import org.junit.After;
 import org.junit.Test;
 import org.openlmis.notification.testutils.FakeSmtpServer;
@@ -35,7 +36,9 @@ public class MailConfigurationSendTest {
 
   @After
   public void tearDown() throws Exception {
-    server.close();
+    if (server != null) {
+      server.close();
+    }
   }
 
   @Test
@@ -73,6 +76,7 @@ public class MailConfigurationSendTest {
     assertThatThrownBy(() -> send(STARTTLS)).isInstanceOf(MailSendException.class);
 
     // then
+    assertThat(server.isEhloSeen()).isTrue();
     assertThat(server.isMailFromSeen()).isFalse();
   }
 
@@ -82,7 +86,9 @@ public class MailConfigurationSendTest {
     server = new FakeSmtpServer(true, false);
 
     // when
-    assertThatThrownBy(() -> send(SSL)).isInstanceOf(MailSendException.class);
+    assertThatThrownBy(() -> send(SSL))
+        .isInstanceOf(MailSendException.class)
+        .hasRootCauseInstanceOf(SSLException.class);
 
     // then
     assertThat(server.isEhloSeen()).isFalse();
