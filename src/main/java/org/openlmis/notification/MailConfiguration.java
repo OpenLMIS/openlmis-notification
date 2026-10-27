@@ -65,10 +65,9 @@ public class MailConfiguration {
 
     Properties javaMail = new Properties();
     javaMail.putAll(properties.getProperties());
-    SmtpSecurity smtpSecurity = SmtpSecurity.fromValue(security);
-    applySecurity(javaMail, smtpSecurity);
+    applySecurity(javaMail, SmtpSecurity.fromValue(security));
     trustStore.getSocketFactory()
-        .ifPresent(factory -> applyTrustStore(javaMail, smtpSecurity, factory));
+        .ifPresent(factory -> applyTrustStore(javaMail, factory));
     sender.setJavaMailProperties(javaMail);
     return sender;
   }
@@ -85,14 +84,12 @@ public class MailConfiguration {
     }
   }
 
-  static void applyTrustStore(Properties javaMail, SmtpSecurity security,
-      SSLSocketFactory factory) {
+  static void applyTrustStore(Properties javaMail, SSLSocketFactory factory) {
     // Used for the STARTTLS upgrade.
     javaMail.put(SSL_SOCKET_FACTORY, factory);
-    // JavaMail prefers a factory instance to mail.smtp.socketFactory.class, so implicit TLS uses
-    // it too. Not when that class is blanked: the connection then stays plain until STARTTLS.
-    if (security == SmtpSecurity.SSL
-        && StringUtils.isNotBlank(javaMail.getProperty(SOCKET_FACTORY_CLASS))) {
+    // JavaMail prefers a factory instance to mail.smtp.socketFactory.class, so a connection that
+    // starts with TLS uses it too. Without that class the connection starts plain.
+    if (StringUtils.isNotBlank(javaMail.getProperty(SOCKET_FACTORY_CLASS))) {
       javaMail.put(SOCKET_FACTORY, factory);
     }
   }

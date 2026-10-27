@@ -215,6 +215,23 @@ public class MailConfigurationTest {
         .doesNotContainKeys(SOCKET_FACTORY);
   }
 
+  @Test
+  public void shouldSetSocketFactoryWhenClassKeptInStartTlsMode() throws Exception {
+    // given
+    mailProperties.getProperties().put(SOCKET_FACTORY_CLASS, "javax.net.ssl.SSLSocketFactory");
+    MailTrustStore trustStore = trustStore();
+    final SSLSocketFactory factory = trustStore.getSocketFactory().get();
+
+    // when
+    Properties properties = new MailConfiguration()
+        .mailSender(mailProperties, STARTTLS, trustStore).getJavaMailProperties();
+
+    // then
+    assertThat(properties)
+        .containsEntry(SSL_SOCKET_FACTORY, factory)
+        .containsEntry(SOCKET_FACTORY, factory);
+  }
+
   private MailTrustStore trustStore() throws IOException {
     Path path = folder.newFile().toPath();
     try (InputStream stream = getClass().getResourceAsStream("/smtp-test-cert.pem")) {
