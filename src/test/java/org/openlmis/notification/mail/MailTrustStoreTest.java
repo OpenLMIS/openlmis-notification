@@ -54,7 +54,7 @@ public class MailTrustStoreTest {
   @Test
   public void shouldBeDisabledWithoutPath() {
     // given
-    MailTrustStore trustStore = new MailTrustStore("", PEM, "", 0);
+    MailTrustStore trustStore = new MailTrustStore("", PEM, "", "0");
 
     // when
     trustStore.install();
@@ -67,7 +67,7 @@ public class MailTrustStoreTest {
   public void shouldTrustFileAndDefaults() throws Exception {
     // given
     List<X509Certificate> defaults = TrustStoreLoader.jvmDefaultAnchors();
-    MailTrustStore trustStore = new MailTrustStore(file(testCertificate()), PEM, "", 0);
+    MailTrustStore trustStore = new MailTrustStore(file(testCertificate()), PEM, "", "0");
 
     // when
     trustStore.install();
@@ -84,7 +84,7 @@ public class MailTrustStoreTest {
   public void shouldFallBackToDefaultsWhenFileMissing() throws Exception {
     // given
     String missing = folder.getRoot().toPath().resolve("missing.pem").toString();
-    MailTrustStore trustStore = new MailTrustStore(missing, PEM, "", 0);
+    MailTrustStore trustStore = new MailTrustStore(missing, PEM, "", "0");
 
     // when
     trustStore.install();
@@ -99,7 +99,7 @@ public class MailTrustStoreTest {
   public void shouldFallBackToDefaultsWhenFileUnparsable() throws Exception {
     // given
     String garbage = file("not a certificate".getBytes(StandardCharsets.US_ASCII));
-    MailTrustStore trustStore = new MailTrustStore(garbage, PEM, "", 0);
+    MailTrustStore trustStore = new MailTrustStore(garbage, PEM, "", "0");
 
     // when
     trustStore.install();
@@ -115,7 +115,7 @@ public class MailTrustStoreTest {
     // given
     final SSLContext defaultContext = SSLContext.getDefault();
     final SocketFactory defaultHttpsFactory = HttpsURLConnection.getDefaultSSLSocketFactory();
-    MailTrustStore trustStore = new MailTrustStore(file(testCertificate()), PEM, "", 0);
+    MailTrustStore trustStore = new MailTrustStore(file(testCertificate()), PEM, "", "0");
 
     // when
     trustStore.install();
@@ -127,20 +127,45 @@ public class MailTrustStoreTest {
   }
 
   @Test
+  public void shouldTreatBlankIntervalAsZero() throws Exception {
+    // given
+    MailTrustStore trustStore = new MailTrustStore(file(testCertificate()), PEM, "", " ");
+
+    // when
+    trustStore.install();
+
+    // then
+    assertThat(trustStore.getSocketFactory()).isPresent();
+    assertThat(watcherThread()).isEmpty();
+  }
+
+  @Test
+  public void shouldTreatBlankTypeAsPem() throws Exception {
+    // given
+    MailTrustStore trustStore = new MailTrustStore(file(testCertificate()), "", "", "0");
+
+    // when
+    trustStore.install();
+
+    // then
+    assertThat(subjects(trustStore.getAcceptedIssuers())).contains(TEST_SUBJECT);
+  }
+
+  @Test
   public void shouldFailOnUnknownType() {
     // then
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage("MAIL_TRUSTSTORE_TYPE must be PEM, JKS or PKCS12");
 
     // when
-    new MailTrustStore("", "pem12", "", 0);
+    new MailTrustStore("", "pem12", "", "0");
   }
 
   @Test
   public void shouldLoadFileFixedAfterBrokenReplacement() throws Exception {
     // given
     String path = file(resource("/smtp-other-cert.pem"));
-    MailTrustStore trustStore = new MailTrustStore(path, PEM, "", 0);
+    MailTrustStore trustStore = new MailTrustStore(path, PEM, "", "0");
     trustStore.install();
 
     // when
@@ -161,7 +186,7 @@ public class MailTrustStoreTest {
   public void shouldPickUpFileCreatedAfterStart() throws Exception {
     // given
     String path = folder.getRoot().toPath().resolve("later.pem").toString();
-    MailTrustStore trustStore = new MailTrustStore(path, PEM, "", 0);
+    MailTrustStore trustStore = new MailTrustStore(path, PEM, "", "0");
     trustStore.install();
 
     // when
@@ -176,7 +201,7 @@ public class MailTrustStoreTest {
   @Test
   public void shouldNotStartWatcherWhenIntervalZero() throws Exception {
     // given
-    MailTrustStore trustStore = new MailTrustStore(file(testCertificate()), PEM, "", 0);
+    MailTrustStore trustStore = new MailTrustStore(file(testCertificate()), PEM, "", "0");
 
     // when
     trustStore.install();
@@ -188,7 +213,7 @@ public class MailTrustStoreTest {
   @Test
   public void shouldStartWatcherAndStopItOnShutdown() throws Exception {
     // given
-    MailTrustStore trustStore = new MailTrustStore(file(testCertificate()), PEM, "", 60);
+    MailTrustStore trustStore = new MailTrustStore(file(testCertificate()), PEM, "", "60");
     trustStore.install();
     final Optional<Thread> watcher = watcherThread();
     assertThat(watcher).isPresent();

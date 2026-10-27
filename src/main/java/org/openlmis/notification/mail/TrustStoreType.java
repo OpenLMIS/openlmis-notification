@@ -21,12 +21,16 @@ public enum TrustStoreType {
   PEM, JKS, PKCS12;
 
   /**
-   * Parses the MAIL_TRUSTSTORE_TYPE value, ignoring case and surrounding spaces.
+   * Parses the MAIL_TRUSTSTORE_TYPE value, ignoring case and surrounding spaces. A blank value
+   * means PEM.
    *
    * @throws IllegalArgumentException if the value is none of PEM, JKS or PKCS12
    */
   public static TrustStoreType fromValue(String value) {
-    String trimmed = StringUtils.trim(value);
+    if (StringUtils.isBlank(value)) {
+      return PEM;
+    }
+    String trimmed = value.trim();
     for (TrustStoreType type : values()) {
       if (type.name().equalsIgnoreCase(trimmed)) {
         return type;

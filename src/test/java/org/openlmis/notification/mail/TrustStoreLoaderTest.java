@@ -204,6 +204,12 @@ public class TrustStoreLoaderTest {
   }
 
   @Test
+  public void shouldParseBlankTypeAsPem() {
+    assertThat(TrustStoreType.fromValue(" ")).isEqualTo(TrustStoreType.PEM);
+    assertThat(TrustStoreType.fromValue(null)).isEqualTo(TrustStoreType.PEM);
+  }
+
+  @Test
   public void shouldParseTypeIgnoringCaseAndSpaces() {
     assertThat(TrustStoreType.fromValue(" pkcs12 ")).isEqualTo(TrustStoreType.PKCS12);
     assertThat(TrustStoreType.fromValue("Pem")).isEqualTo(TrustStoreType.PEM);

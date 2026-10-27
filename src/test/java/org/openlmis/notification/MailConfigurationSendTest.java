@@ -110,7 +110,7 @@ public class MailConfigurationSendTest {
     // The server's certificate is self-signed.
     properties.getProperties().put("mail.smtp.ssl.trust", "*");
     final JavaMailSenderImpl sender = new MailConfiguration()
-        .mailSender(properties, security, new MailTrustStore("", "PEM", "", 0));
+        .mailSender(properties, security, new MailTrustStore("", "PEM", "", "0"));
 
     SimpleMailMessage message = new SimpleMailMessage();
     message.setFrom("noreply@test.org");
