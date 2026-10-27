@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
@@ -156,7 +157,58 @@ public class MailTrustStoreSendTest {
     assertThat(server.isMailFromSeen()).isFalse();
   }
 
+  @Test
+  public void shouldPickUpReplacedFile() throws Exception {
+    // given
+    server = new FakeSmtpServer(true, false);
+    final Path file = file(resource(OTHER_CERT));
+    final MailTrustStore trustStore = trustStore(file, PEM, "");
+    final JavaMailSenderImpl sender = sender(STARTTLS, trustStore);
+    assertThatThrownBy(() -> send(sender))
+        .hasStackTraceContaining(PKIX_FAILURE);
+
+    // when
+    Files.write(file, resource(TEST_CERT));
+    trustStore.reloadIfChanged();
+    send(sender);
+
+    // then
+    assertThat(server.isMailFromOverTls()).isTrue();
+  }
+
+  @Test
+  public void shouldKeepCertificatesWhenReplacementBroken() throws Exception {
+    // given
+    server = new FakeSmtpServer(true, false);
+    final Path file = file(resource(TEST_CERT));
+    final MailTrustStore trustStore = trustStore(file, PEM, "");
+    final JavaMailSenderImpl sender = sender(STARTTLS, trustStore);
+
+    // when
+    Files.write(file, "not a certificate".getBytes(StandardCharsets.US_ASCII));
+    trustStore.reloadIfChanged();
+    // The first send comes after the reload, so no earlier TLS session can be resumed past
+    // certificate validation.
+    send(sender);
+
+    // then
+    assertThat(server.isMailFromOverTls()).isTrue();
+  }
+
   private void send(String security, MailTrustStore trustStore) {
+    send(sender(security, trustStore));
+  }
+
+  private void send(JavaMailSenderImpl sender) {
+    SimpleMailMessage message = new SimpleMailMessage();
+    message.setFrom("noreply@test.org");
+    message.setTo("user@test.org");
+    message.setSubject("subject");
+    message.setText("body");
+    sender.send(message);
+  }
+
+  private JavaMailSenderImpl sender(String security, MailTrustStore trustStore) {
     MailProperties properties = new MailProperties();
     properties.setHost(server.getHost());
     properties.setPort(server.getPort());
@@ -167,25 +219,24 @@ public class MailTrustStoreSendTest {
     properties.getProperties().put("mail.smtp.quitwait", "false");
     properties.getProperties().put("mail.smtp.connectiontimeout", "5000");
     properties.getProperties().put("mail.smtp.timeout", "5000");
-    final JavaMailSenderImpl sender = new MailConfiguration()
-        .mailSender(properties, security, trustStore);
-
-    SimpleMailMessage message = new SimpleMailMessage();
-    message.setFrom("noreply@test.org");
-    message.setTo("user@test.org");
-    message.setSubject("subject");
-    message.setText("body");
-    sender.send(message);
+    return new MailConfiguration().mailSender(properties, security, trustStore);
   }
 
   private MailTrustStore trustStore(byte[] content, String type, String password)
       throws IOException {
-    Path path = folder.newFile().toPath();
-    Files.write(path, content);
+    return trustStore(file(content), type, password);
+  }
 
+  private MailTrustStore trustStore(Path path, String type, String password) {
     MailTrustStore trustStore = new MailTrustStore(path.toString(), type, password, 0);
     trustStore.install();
     return trustStore;
+  }
+
+  private Path file(byte[] content) throws IOException {
+    Path path = folder.newFile().toPath();
+    Files.write(path, content);
+    return path;
   }
 
   private byte[] resource(String name) throws IOException {

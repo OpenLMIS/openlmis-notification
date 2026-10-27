@@ -18,15 +18,23 @@ package org.openlmis.notification.mail;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
@@ -37,18 +45,34 @@ import org.springframework.stereotype.Component;
 
 /**
  * Certificates trusted for SMTP connections only, on top of the JVM default ones. The rest of the
- * service keeps the JVM default trust.
+ * service keeps the JVM default trust. The file can be watched, so that a changed certificate
+ * needs no restart.
  */
 @Component
 public class MailTrustStore {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MailTrustStore.class);
 
+  private static final String KEEP_DEFAULTS = "SMTP trusts only the JVM default certificates";
+  private static final String KEEP_CURRENT = "keeping the certificates that are currently in use";
+
   private final String path;
   private final TrustStoreLoader loader;
+  private final long reloadIntervalSeconds;
   private final ReloadableTrustManager trustManager = new ReloadableTrustManager();
 
+  private Path file;
+  private List<X509Certificate> defaults;
   private SSLSocketFactory socketFactory;
+  private ScheduledExecutorService watcher;
+
+  /**
+   * Digest of the contents last attempted, successfully or not, so that a file that cannot be
+   * loaded is not retried, and logged, on every check.
+   */
+  private volatile String attemptedDigest;
+
+  private volatile boolean readFailureReported;
 
   /**
    * Creates the trust store from the MAIL_TRUSTSTORE_* settings.
@@ -62,6 +86,7 @@ public class MailTrustStore {
     this.path = path;
     this.loader = new TrustStoreLoader(TrustStoreType.fromValue(type),
         isBlank(password) ? null : password.toCharArray());
+    this.reloadIntervalSeconds = reloadIntervalSeconds;
   }
 
   /**
@@ -75,16 +100,50 @@ public class MailTrustStore {
       return;
     }
 
+    file = Paths.get(path);
     try {
-      List<X509Certificate> defaults = TrustStoreLoader.jvmDefaultAnchors();
+      defaults = TrustStoreLoader.jvmDefaultAnchors();
       trustManager.set(TrustStoreLoader.trustManagerFor(defaults));
-      load(Paths.get(path), defaults);
+
+      byte[] content = read(KEEP_DEFAULTS);
+      if (content != null) {
+        swapIn(content, KEEP_DEFAULTS);
+      }
 
       SSLContext context = SSLContext.getInstance("TLS");
       context.init(null, new TrustManager[] {trustManager}, null);
       socketFactory = context.getSocketFactory();
     } catch (GeneralSecurityException exp) {
       throw new IllegalStateException("Could not set up the SMTP trust store", exp);
+    }
+
+    startWatching();
+  }
+
+  /**
+   * Loads the file again if its contents changed since the last attempt. A file that cannot be
+   * read or loaded is logged once, and the certificates in use stay in use.
+   */
+  public void reloadIfChanged() {
+    // Anything thrown here would silently cancel the scheduled check, so nothing gets out.
+    try {
+      byte[] content = read(KEEP_CURRENT);
+      if (content != null && !Objects.equals(attemptedDigest, digest(content))) {
+        LOGGER.info("SMTP trust store {} changed, reloading", file);
+        swapIn(content, KEEP_CURRENT);
+      }
+    } catch (RuntimeException exp) {
+      LOGGER.error("Unexpected failure while checking the SMTP trust store {}", file, exp);
+    }
+  }
+
+  /**
+   * Stops watching the file.
+   */
+  @PreDestroy
+  public void shutdown() {
+    if (watcher != null) {
+      watcher.shutdownNow();
     }
   }
 
@@ -96,20 +155,58 @@ public class MailTrustStore {
     return trustManager.getAcceptedIssuers();
   }
 
-  private void load(Path file, List<X509Certificate> defaults) throws GeneralSecurityException {
-    List<X509Certificate> certificates;
-    try {
-      certificates = loader.readCertificates(Files.readAllBytes(file));
-    } catch (IOException | GeneralSecurityException exp) {
-      LOGGER.error("Could not load the SMTP trust store {}, SMTP trusts only the JVM default"
-          + " certificates: {}", file, exp.toString());
+  private void startWatching() {
+    if (reloadIntervalSeconds <= 0) {
       return;
     }
 
-    List<X509Certificate> anchors = new ArrayList<>(defaults);
-    anchors.addAll(certificates);
-    trustManager.set(TrustStoreLoader.trustManagerFor(anchors));
-    LOGGER.info("SMTP trusts {} certificate(s) from {} in addition to the JVM default ones",
-        certificates.size(), file);
+    watcher = Executors.newSingleThreadScheduledExecutor(runnable -> {
+      Thread thread = new Thread(runnable, "mail-truststore-watch");
+      thread.setDaemon(true);
+      return thread;
+    });
+    watcher.scheduleWithFixedDelay(this::reloadIfChanged,
+        reloadIntervalSeconds, reloadIntervalSeconds, TimeUnit.SECONDS);
+    LOGGER.info("Checking the SMTP trust store {} for changes every {}s", file,
+        reloadIntervalSeconds);
+  }
+
+  private byte[] read(String outcome) {
+    try {
+      byte[] content = Files.readAllBytes(file);
+      readFailureReported = false;
+      return content;
+    } catch (IOException exp) {
+      if (!readFailureReported) {
+        readFailureReported = true;
+        LOGGER.error("Could not read the SMTP trust store {}, {}: {}", file, outcome,
+            exp.toString());
+      }
+      return null;
+    }
+  }
+
+  private void swapIn(byte[] content, String outcome) {
+    attemptedDigest = digest(content);
+    try {
+      List<X509Certificate> certificates = loader.readCertificates(content);
+      List<X509Certificate> anchors = new ArrayList<>(defaults);
+      anchors.addAll(certificates);
+      trustManager.set(TrustStoreLoader.trustManagerFor(anchors));
+      LOGGER.info("SMTP trusts {} certificate(s) from {} in addition to the JVM default ones",
+          certificates.size(), file);
+    } catch (IOException | GeneralSecurityException exp) {
+      LOGGER.error("Could not load the SMTP trust store {}, {}: {}", file, outcome,
+          exp.toString());
+    }
+  }
+
+  private static String digest(byte[] content) {
+    try {
+      return new BigInteger(1, MessageDigest.getInstance("SHA-256").digest(content)).toString(16);
+    } catch (NoSuchAlgorithmException exp) {
+      // Every JVM is required to provide SHA-256.
+      throw new IllegalStateException(exp);
+    }
   }
 }

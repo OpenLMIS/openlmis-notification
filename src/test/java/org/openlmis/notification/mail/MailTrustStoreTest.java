@@ -22,9 +22,11 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.net.SocketFactory;
 import javax.net.ssl.HttpsURLConnection;
@@ -35,9 +37,12 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
+@SuppressWarnings("PMD.TooManyMethods")
 public class MailTrustStoreTest {
 
   private static final String TEST_SUBJECT = "CN=localhost";
+  private static final String OTHER_SUBJECT = "CN=other";
+  private static final String WATCHER = "mail-truststore-watch";
   private static final String PEM = "PEM";
 
   @Rule
@@ -131,10 +136,89 @@ public class MailTrustStoreTest {
     new MailTrustStore("", "pem12", "", 0);
   }
 
+  @Test
+  public void shouldLoadFileFixedAfterBrokenReplacement() throws Exception {
+    // given
+    String path = file(resource("/smtp-other-cert.pem"));
+    MailTrustStore trustStore = new MailTrustStore(path, PEM, "", 0);
+    trustStore.install();
+
+    // when
+    write(path, "-----BEGIN CERTIFICATE-----\nbroken".getBytes(StandardCharsets.US_ASCII));
+    trustStore.reloadIfChanged();
+    final List<String> afterBroken = subjects(trustStore.getAcceptedIssuers());
+    write(path, testCertificate());
+    trustStore.reloadIfChanged();
+
+    // then
+    assertThat(afterBroken).contains(OTHER_SUBJECT);
+    assertThat(subjects(trustStore.getAcceptedIssuers()))
+        .contains(TEST_SUBJECT)
+        .doesNotContain(OTHER_SUBJECT);
+  }
+
+  @Test
+  public void shouldPickUpFileCreatedAfterStart() throws Exception {
+    // given
+    String path = folder.getRoot().toPath().resolve("later.pem").toString();
+    MailTrustStore trustStore = new MailTrustStore(path, PEM, "", 0);
+    trustStore.install();
+
+    // when
+    write(path, testCertificate());
+    trustStore.reloadIfChanged();
+
+    // then
+    assertThat(trustStore.getAcceptedIssuers()).hasSize(defaultAnchors().length + 1);
+    assertThat(subjects(trustStore.getAcceptedIssuers())).contains(TEST_SUBJECT);
+  }
+
+  @Test
+  public void shouldNotStartWatcherWhenIntervalZero() throws Exception {
+    // given
+    MailTrustStore trustStore = new MailTrustStore(file(testCertificate()), PEM, "", 0);
+
+    // when
+    trustStore.install();
+
+    // then
+    assertThat(watcherThread()).isEmpty();
+  }
+
+  @Test
+  public void shouldStartWatcherAndStopItOnShutdown() throws Exception {
+    // given
+    MailTrustStore trustStore = new MailTrustStore(file(testCertificate()), PEM, "", 60);
+    trustStore.install();
+    final Optional<Thread> watcher = watcherThread();
+    assertThat(watcher).isPresent();
+
+    // when
+    trustStore.shutdown();
+    watcher.get().join(5000);
+
+    // then
+    assertThat(watcher.get().isAlive()).isFalse();
+  }
+
   private byte[] testCertificate() throws IOException {
-    try (InputStream stream = getClass().getResourceAsStream("/smtp-test-cert.pem")) {
+    return resource("/smtp-test-cert.pem");
+  }
+
+  private byte[] resource(String name) throws IOException {
+    try (InputStream stream = getClass().getResourceAsStream(name)) {
       return IOUtils.toByteArray(stream);
     }
+  }
+
+  private void write(String path, byte[] content) throws IOException {
+    Files.write(Paths.get(path), content);
+  }
+
+  private Optional<Thread> watcherThread() {
+    return Thread.getAllStackTraces().keySet().stream()
+        .filter(thread -> WATCHER.equals(thread.getName()))
+        .findFirst();
   }
 
   private String file(byte[] content) throws IOException {
