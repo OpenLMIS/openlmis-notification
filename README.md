@@ -73,7 +73,8 @@ Environment variables common to all services are listed here: https://github.com
 This service also uses the following variables:
 
 * **MAIL_HOST** - The hostname or IP of the SMTP server that will be used for sending outgoing email. For example: smtp.example.com. This variable has to be defined in order to send emails. 
-* **MAIL_PORT** - The SMTP port to use for sending outgoing email. For example 25 or 465. This variable has to be defined in order to send emails. The default is 25.
+* **MAIL_PORT** - The SMTP port to use for sending outgoing email. Usually 465 with MAIL_SMTP_SECURITY=ssl, and 587 or 25 with MAIL_SMTP_SECURITY=starttls. This variable has to be defined in order to send emails. The default is 25.
+* **MAIL_SMTP_SECURITY** - How the connection to the SMTP server is secured: `ssl` (implicit TLS: the connection starts encrypted) or `starttls` (the connection starts in plain text and is upgraded with STARTTLS). With `starttls` the upgrade is required: if the server does not offer STARTTLS, sending fails, and mail is never sent in plain text. In both modes the service logs in only if the server offers AUTH. The default is `ssl`.
 * **MAIL_USERNAME** - The SMTP username to use for sending outgoing email. Usually required by the SMTP server.  
 * **MAIL_PASSWORD** - The SMTP password to use for sending outgoing email. Usually required by the SMTP server.
 * **MAIL_ADDRESS** - The sender email address that will be used for sending all outgoing email messages (the from-address field). For example set it to noreply@mydomain.org in order for users to see that as the sender of the email they receive. Note that some email providers (like Gmail) might overwrite this value with details from your account.   
