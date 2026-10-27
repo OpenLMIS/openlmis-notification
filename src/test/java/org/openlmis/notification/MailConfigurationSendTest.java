@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import javax.net.ssl.SSLException;
 import org.junit.After;
 import org.junit.Test;
+import org.openlmis.notification.mail.MailTrustStore;
 import org.openlmis.notification.testutils.FakeSmtpServer;
 import org.springframework.boot.autoconfigure.mail.MailProperties;
 import org.springframework.mail.MailSendException;
@@ -108,7 +109,8 @@ public class MailConfigurationSendTest {
     properties.getProperties().put("mail.smtp.timeout", "5000");
     // The server's certificate is self-signed.
     properties.getProperties().put("mail.smtp.ssl.trust", "*");
-    final JavaMailSenderImpl sender = new MailConfiguration().mailSender(properties, security);
+    final JavaMailSenderImpl sender = new MailConfiguration()
+        .mailSender(properties, security, new MailTrustStore("", "PEM", "", 0));
 
     SimpleMailMessage message = new SimpleMailMessage();
     message.setFrom("noreply@test.org");

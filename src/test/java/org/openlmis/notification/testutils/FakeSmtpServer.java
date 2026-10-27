@@ -36,6 +36,7 @@ public class FakeSmtpServer implements AutoCloseable {
   private static final char[] KEYSTORE_PASSWORD = "fakesmtp".toCharArray();
   private static final int SOCKET_TIMEOUT_MS = 10000;
 
+  private final boolean implicitTls;
   private final boolean offerStartTls;
   private final boolean offerAuth;
   private final SSLContext sslContext;
@@ -48,6 +49,16 @@ public class FakeSmtpServer implements AutoCloseable {
    */
   public FakeSmtpServer(boolean offerStartTls, boolean offerAuth)
       throws IOException, GeneralSecurityException {
+    this(false, offerStartTls, offerAuth);
+  }
+
+  /**
+   * Starts the server on an ephemeral port of the loopback address. With implicitTls the
+   * connection is encrypted from the start, as on port 465.
+   */
+  public FakeSmtpServer(boolean implicitTls, boolean offerStartTls, boolean offerAuth)
+      throws IOException, GeneralSecurityException {
+    this.implicitTls = implicitTls;
     this.offerStartTls = offerStartTls;
     this.offerAuth = offerAuth;
     this.sslContext = createSslContext();
@@ -105,7 +116,8 @@ public class FakeSmtpServer implements AutoCloseable {
     while (!serverSocket.isClosed()) {
       try (Socket socket = serverSocket.accept()) {
         socket.setSoTimeout(SOCKET_TIMEOUT_MS);
-        session = new FakeSmtpSession(socket, sslContext, offerStartTls, offerAuth);
+        session = new FakeSmtpSession(socket, sslContext, implicitTls, offerStartTls,
+            offerAuth);
         session.run();
       } catch (IOException ex) {
         // A client that drops the connection, for example on a failed handshake, is expected.

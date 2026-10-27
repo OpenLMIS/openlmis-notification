@@ -17,26 +17,45 @@ package org.openlmis.notification;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Properties;
+import javax.net.ssl.SSLSocketFactory;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.TemporaryFolder;
 import org.openlmis.notification.MailConfiguration.SmtpSecurity;
+import org.openlmis.notification.mail.MailTrustStore;
 import org.springframework.boot.autoconfigure.mail.MailProperties;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 
+@SuppressWarnings("PMD.TooManyMethods")
 public class MailConfigurationTest {
 
   private static final String SOCKET_FACTORY_CLASS = "mail.smtp.socketFactory.class";
   private static final String SOCKET_FACTORY_FALLBACK = "mail.smtp.socketFactory.fallback";
   private static final String STARTTLS_ENABLE = "mail.smtp.starttls.enable";
   private static final String STARTTLS_REQUIRED = "mail.smtp.starttls.required";
+  private static final String SOCKET_FACTORY = "mail.smtp.socketFactory";
+  private static final String SSL_SOCKET_FACTORY = "mail.smtp.ssl.socketFactory";
+  private static final String SSL = "ssl";
+  private static final String STARTTLS = "starttls";
+  private static final String PEM = "PEM";
   private static final String TRUE = "true";
   private static final String FALSE = "false";
 
   @Rule
   public ExpectedException exception = ExpectedException.none();
+
+  @Rule
+  public TemporaryFolder folder = new TemporaryFolder();
+
+  private final MailTrustStore noTrustStore = new MailTrustStore("", PEM, "", 0);
 
   private MailProperties mailProperties;
 
@@ -51,12 +70,14 @@ public class MailConfigurationTest {
     mailProperties.getProperties().put("mail.smtp.auth", TRUE);
     mailProperties.getProperties().put(STARTTLS_ENABLE, TRUE);
     mailProperties.getProperties().put("mail.smtp.quitwait", FALSE);
+    noTrustStore.install();
   }
 
   @Test
   public void shouldUseImplicitTlsByDefault() {
     // when
-    final JavaMailSenderImpl sender = new MailConfiguration().mailSender(mailProperties, "ssl");
+    final JavaMailSenderImpl sender = new MailConfiguration()
+        .mailSender(mailProperties, "ssl", noTrustStore);
 
     // then
     Properties expected = new Properties();
@@ -77,7 +98,7 @@ public class MailConfigurationTest {
   public void shouldRequireStartTlsInStartTlsMode() {
     // when
     Properties properties = new MailConfiguration()
-        .mailSender(mailProperties, "starttls").getJavaMailProperties();
+        .mailSender(mailProperties, "starttls", noTrustStore).getJavaMailProperties();
 
     // then
     assertThat(properties)
@@ -93,7 +114,7 @@ public class MailConfigurationTest {
 
     // when
     Properties properties = new MailConfiguration()
-        .mailSender(mailProperties, "ssl").getJavaMailProperties();
+        .mailSender(mailProperties, "ssl", noTrustStore).getJavaMailProperties();
 
     // then
     assertThat(properties).containsEntry(SOCKET_FACTORY_CLASS, "");
@@ -107,7 +128,7 @@ public class MailConfigurationTest {
 
     // when
     Properties properties = new MailConfiguration()
-        .mailSender(mailProperties, "starttls").getJavaMailProperties();
+        .mailSender(mailProperties, "starttls", noTrustStore).getJavaMailProperties();
 
     // then
     assertThat(properties)
@@ -122,12 +143,86 @@ public class MailConfigurationTest {
     exception.expectMessage("MAIL_SMTP_SECURITY must be ssl or starttls, was: tls");
 
     // when
-    new MailConfiguration().mailSender(mailProperties, "tls");
+    new MailConfiguration().mailSender(mailProperties, "tls", noTrustStore);
   }
 
   @Test
   public void shouldParseSecurityIgnoringCaseAndSpaces() {
     assertThat(SmtpSecurity.fromValue(" STARTTLS ")).isEqualTo(SmtpSecurity.STARTTLS);
     assertThat(SmtpSecurity.fromValue("Ssl")).isEqualTo(SmtpSecurity.SSL);
+  }
+
+  @Test
+  public void shouldLeavePropertiesUntouchedWithoutTrustStore() {
+    // when
+    Properties ssl = new MailConfiguration()
+        .mailSender(mailProperties, SSL, noTrustStore).getJavaMailProperties();
+    Properties starttls = new MailConfiguration()
+        .mailSender(mailProperties, STARTTLS, noTrustStore).getJavaMailProperties();
+
+    // then
+    assertThat(ssl).doesNotContainKeys(SOCKET_FACTORY, SSL_SOCKET_FACTORY);
+    assertThat(starttls).doesNotContainKeys(SOCKET_FACTORY, SSL_SOCKET_FACTORY);
+  }
+
+  @Test
+  public void shouldSetBothFactoriesInSslMode() throws Exception {
+    // given
+    MailTrustStore trustStore = trustStore();
+    final SSLSocketFactory factory = trustStore.getSocketFactory().get();
+
+    // when
+    Properties properties = new MailConfiguration()
+        .mailSender(mailProperties, SSL, trustStore).getJavaMailProperties();
+
+    // then
+    assertThat(properties)
+        .containsEntry(SSL_SOCKET_FACTORY, factory)
+        .containsEntry(SOCKET_FACTORY, factory)
+        .containsEntry(SOCKET_FACTORY_CLASS, "javax.net.ssl.SSLSocketFactory");
+  }
+
+  @Test
+  public void shouldSetOnlySslFactoryInStartTlsMode() throws Exception {
+    // given
+    MailTrustStore trustStore = trustStore();
+    final SSLSocketFactory factory = trustStore.getSocketFactory().get();
+
+    // when
+    Properties properties = new MailConfiguration()
+        .mailSender(mailProperties, STARTTLS, trustStore).getJavaMailProperties();
+
+    // then
+    assertThat(properties)
+        .containsEntry(SSL_SOCKET_FACTORY, factory)
+        .doesNotContainKeys(SOCKET_FACTORY);
+  }
+
+  @Test
+  public void shouldNotForceImplicitTlsWhenSocketFactoryBlanked() throws Exception {
+    // given
+    mailProperties.getProperties().put(SOCKET_FACTORY_CLASS, "");
+    MailTrustStore trustStore = trustStore();
+    final SSLSocketFactory factory = trustStore.getSocketFactory().get();
+
+    // when
+    Properties properties = new MailConfiguration()
+        .mailSender(mailProperties, SSL, trustStore).getJavaMailProperties();
+
+    // then
+    assertThat(properties)
+        .containsEntry(SSL_SOCKET_FACTORY, factory)
+        .doesNotContainKeys(SOCKET_FACTORY);
+  }
+
+  private MailTrustStore trustStore() throws IOException {
+    Path path = folder.newFile().toPath();
+    try (InputStream stream = getClass().getResourceAsStream("/smtp-test-cert.pem")) {
+      Files.copy(stream, path, StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    MailTrustStore trustStore = new MailTrustStore(path.toString(), PEM, "", 0);
+    trustStore.install();
+    return trustStore;
   }
 }
