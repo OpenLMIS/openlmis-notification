@@ -142,6 +142,16 @@ public class TrustStoreLoaderTest {
   }
 
   @Test
+  public void shouldReadPkcs12WithEmptyPassword() throws Exception {
+    // when
+    List<X509Certificate> certificates = new TrustStoreLoader(TrustStoreType.PKCS12, null)
+        .readCertificates(keyStore("PKCS12", new char[0]));
+
+    // then
+    assertThat(subjects(certificates)).containsExactly(TEST_SUBJECT);
+  }
+
+  @Test
   public void shouldRejectKeyStoreWithWrongPassword() throws Exception {
     // then
     exception.expect(IOException.class);

@@ -113,9 +113,15 @@ class TrustStoreLoader {
 
   private List<X509Certificate> readKeyStore(byte[] content)
       throws GeneralSecurityException, IOException {
+    // The certificates of a PKCS12 file exported with an empty password are encrypted with it,
+    // and a null password skips them. For JKS, null only skips the integrity check.
+    char[] storePassword = password == null && type == TrustStoreType.PKCS12
+        ? new char[0]
+        : password;
+
     KeyStore keyStore = KeyStore.getInstance(type.name());
     try (InputStream input = new ByteArrayInputStream(content)) {
-      keyStore.load(input, password);
+      keyStore.load(input, storePassword);
     }
 
     List<X509Certificate> certificates = new ArrayList<>();
