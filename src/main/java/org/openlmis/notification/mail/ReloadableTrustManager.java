@@ -24,17 +24,17 @@ import javax.net.ssl.X509ExtendedTrustManager;
 
 /**
  * Trust manager whose anchors can be swapped while the service runs, so the SSLContext built over
- * it never has to be rebuilt. Extends {@link X509ExtendedTrustManager} rather than implementing
- * X509TrustManager on purpose: JSSE wraps the plain interface in an adapter that drops the socket
- * and engine aware callbacks, and with them hostname verification.
+ * it never has to be rebuilt. Extends {@link X509ExtendedTrustManager} so that the socket and
+ * engine aware checks reach the delegate as they are, instead of through the adapter JSSE puts
+ * around a plain X509TrustManager.
  */
 public class ReloadableTrustManager extends X509ExtendedTrustManager {
 
   private final AtomicReference<X509ExtendedTrustManager> delegate = new AtomicReference<>();
 
   /**
-   * Replaces the anchors used by every subsequent handshake. Handshakes already in flight keep
-   * the delegate they started with.
+   * Replaces the anchors used by every certificate check from now on. A handshake that has
+   * already checked the server's certificate is not checked again.
    */
   void set(X509ExtendedTrustManager newDelegate) {
     delegate.set(newDelegate);
