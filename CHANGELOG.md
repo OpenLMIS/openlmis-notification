@@ -3,6 +3,7 @@
 
 Improvements:
 * [OLMIS-8425](https://openlmis.atlassian.net/browse/OLMIS-8425): The new MAIL_SMTP_SECURITY variable lets the service send through an SMTP server that offers STARTTLS, usually on port 587 or 25. With `starttls` the upgrade is required, so mail is never sent in plain text. The default, `ssl`, connects with implicit TLS as before, so existing deployments need no change. An explicit `spring.mail.properties.mail.smtp.socketFactory.class` in JAVA_OPTS is still honoured in `ssl` mode.
+* [OLMIS-8426](https://openlmis.atlassian.net/browse/OLMIS-8426): The new MAIL_TRUSTSTORE_PATH, MAIL_TRUSTSTORE_TYPE and MAIL_TRUSTSTORE_PASSWORD variables let SMTP trust a self-signed or private CA certificate from a PEM, JKS or PKCS12 file, in addition to the JVM default certificates and for SMTP only, over implicit TLS and STARTTLS. Replacing the JVM-wide trust store is no longer needed. With MAIL_TRUSTSTORE_RELOAD_INTERVAL_SECONDS (default 0, off) a changed file is loaded without a restart. Without MAIL_TRUSTSTORE_PATH nothing changes.
 
 Bug fixes:
 * [OLMIS-8380](https://openlmis.atlassian.net/browse/OLMIS-8380): The 400 returned by PUT /api/userContactDetails/{id} when the request changes the email verification status now names the field, instead of showing an unfilled {0} placeholder.
