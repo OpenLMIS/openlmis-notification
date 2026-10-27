@@ -145,7 +145,7 @@ public class MailTrustStoreSendTest {
   public void shouldRejectSelfSignedWithoutTrustStore() throws Exception {
     // given
     server = new FakeSmtpServer(true, false);
-    final MailTrustStore trustStore = new MailTrustStore("", PEM, "", 0);
+    final MailTrustStore trustStore = new MailTrustStore("", PEM, "", "0");
     trustStore.install();
 
     // when
@@ -247,7 +247,7 @@ public class MailTrustStoreSendTest {
   }
 
   private MailTrustStore trustStore(Path path, String type, String password) {
-    MailTrustStore trustStore = new MailTrustStore(path.toString(), type, password, 0);
+    MailTrustStore trustStore = new MailTrustStore(path.toString(), type, password, "0");
     trustStore.install();
     return trustStore;
   }

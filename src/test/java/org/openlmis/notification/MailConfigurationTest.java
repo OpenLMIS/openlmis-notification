@@ -55,7 +55,7 @@ public class MailConfigurationTest {
   @Rule
   public TemporaryFolder folder = new TemporaryFolder();
 
-  private final MailTrustStore noTrustStore = new MailTrustStore("", PEM, "", 0);
+  private final MailTrustStore noTrustStore = new MailTrustStore("", PEM, "", "0");
 
   private MailProperties mailProperties;
 
@@ -221,7 +221,7 @@ public class MailConfigurationTest {
       Files.copy(stream, path, StandardCopyOption.REPLACE_EXISTING);
     }
 
-    MailTrustStore trustStore = new MailTrustStore(path.toString(), PEM, "", 0);
+    MailTrustStore trustStore = new MailTrustStore(path.toString(), PEM, "", "0");
     trustStore.install();
     return trustStore;
   }

@@ -79,18 +79,22 @@ public class MailTrustStore {
   private volatile boolean readFailureReported;
 
   /**
-   * Creates the trust store from the MAIL_TRUSTSTORE_* settings.
+   * Creates the trust store from the MAIL_TRUSTSTORE_* settings. A blank type means PEM, and a
+   * blank reload interval means no reloading.
    *
-   * @throws IllegalArgumentException if the type is none of PEM, JKS or PKCS12
+   * @throws IllegalArgumentException if the type is none of PEM, JKS or PKCS12, or the interval
+   *     is not a number
    */
   public MailTrustStore(@Value("${email.smtp.truststore.path}") String path,
       @Value("${email.smtp.truststore.type}") String type,
       @Value("${email.smtp.truststore.password}") String password,
-      @Value("${email.smtp.truststore.reloadIntervalSeconds}") long reloadIntervalSeconds) {
+      @Value("${email.smtp.truststore.reloadIntervalSeconds}") String reloadIntervalSeconds) {
     this.path = path;
     this.loader = new TrustStoreLoader(TrustStoreType.fromValue(type),
         isBlank(password) ? null : password.toCharArray());
-    this.reloadIntervalSeconds = reloadIntervalSeconds;
+    this.reloadIntervalSeconds = isBlank(reloadIntervalSeconds)
+        ? 0
+        : Long.parseLong(reloadIntervalSeconds.trim());
   }
 
   /**
