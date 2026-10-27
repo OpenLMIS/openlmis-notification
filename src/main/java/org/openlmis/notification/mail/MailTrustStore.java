@@ -27,6 +27,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -36,6 +37,8 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import org.slf4j.Logger;
@@ -63,6 +66,7 @@ public class MailTrustStore {
 
   private Path file;
   private List<X509Certificate> defaults;
+  private SSLContext context;
   private SSLSocketFactory socketFactory;
   private ScheduledExecutorService watcher;
 
@@ -110,7 +114,7 @@ public class MailTrustStore {
         swapIn(content, KEEP_DEFAULTS);
       }
 
-      SSLContext context = SSLContext.getInstance("TLS");
+      context = SSLContext.getInstance("TLS");
       context.init(null, new TrustManager[] {trustManager}, null);
       socketFactory = context.getSocketFactory();
     } catch (GeneralSecurityException exp) {
@@ -193,11 +197,27 @@ public class MailTrustStore {
       List<X509Certificate> anchors = new ArrayList<>(defaults);
       anchors.addAll(certificates);
       trustManager.set(TrustStoreLoader.trustManagerFor(anchors));
+      forgetSessions();
       LOGGER.info("SMTP trusts {} certificate(s) from {} in addition to the JVM default ones",
           certificates.size(), file);
     } catch (IOException | GeneralSecurityException exp) {
       LOGGER.error("Could not load the SMTP trust store {}, {}: {}", file, outcome,
           exp.toString());
+    }
+  }
+
+  private void forgetSessions() {
+    if (context == null) {
+      return;
+    }
+    // A resumed TLS session skips certificate validation, so no session validated against the
+    // previous certificates may be reused.
+    SSLSessionContext sessions = context.getClientSessionContext();
+    for (byte[] id : Collections.list(sessions.getIds())) {
+      SSLSession session = sessions.getSession(id);
+      if (session != null) {
+        session.invalidate();
+      }
     }
   }
 

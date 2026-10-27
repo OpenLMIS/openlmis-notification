@@ -195,6 +195,25 @@ public class MailTrustStoreSendTest {
     assertThat(server.isMailFromOverTls()).isTrue();
   }
 
+  @Test
+  public void shouldStopTrustingRemovedCertificateAfterReload() throws Exception {
+    // given
+    server = new FakeSmtpServer(true, false);
+    final Path file = file(resource(TEST_CERT));
+    final MailTrustStore trustStore = trustStore(file, PEM, "");
+    final JavaMailSenderImpl sender = sender(STARTTLS, trustStore);
+    send(sender);
+
+    // when
+    Files.write(file, resource(OTHER_CERT));
+    trustStore.reloadIfChanged();
+
+    // then
+    assertThatThrownBy(() -> send(sender))
+        .isInstanceOf(MailSendException.class)
+        .hasStackTraceContaining(PKIX_FAILURE);
+  }
+
   private void send(String security, MailTrustStore trustStore) {
     send(sender(security, trustStore));
   }
