@@ -16,6 +16,7 @@
 package org.openlmis.notification.service;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.UUID;
@@ -60,7 +61,7 @@ public class PendingNotificationRetryService {
     }
 
     pending.recordFailedAttempt(
-        ZonedDateTime.now().plus(backoffAfter(pending.getRetryCount() + 1)),
+        ZonedDateTime.now(Clock.systemUTC()).plus(backoffAfter(pending.getRetryCount() + 1)),
         describe(rootCause));
 
     return pendingNotificationRepository.save(pending);
