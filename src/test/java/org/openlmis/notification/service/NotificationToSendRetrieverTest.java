@@ -19,8 +19,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.openlmis.notification.service.NotificationToSendRetriever.CHANNEL_TO_USE_HEADER;
 import static org.openlmis.notification.service.NotificationToSendRetriever.IMPORTANT_HEADER;
+import static org.openlmis.notification.service.NotificationToSendRetriever.NOTIFICATION_ID_HEADER;
 import static org.openlmis.notification.service.NotificationToSendRetriever.RECIPIENT_HEADER;
 
+import java.time.ZonedDateTime;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -32,6 +34,7 @@ import org.openlmis.notification.domain.PendingNotification;
 import org.openlmis.notification.util.NotificationDataBuilder;
 import org.springframework.integration.jpa.core.JpaExecutor;
 import org.springframework.messaging.Message;
+import org.springframework.test.util.ReflectionTestUtils;
 
 public class NotificationToSendRetrieverTest {
 
@@ -45,7 +48,7 @@ public class NotificationToSendRetrieverTest {
 
   private Notification notification = new NotificationDataBuilder()
       .withEmptyMessage(NotificationChannel.EMAIL)
-      .buildAsNew();
+      .build();
 
   private PendingNotification pendingNotification =
       new PendingNotification(notification, NotificationChannel.EMAIL);
@@ -53,6 +56,7 @@ public class NotificationToSendRetrieverTest {
   @Before
   public void setUp() {
     retriever = new NotificationToSendRetriever(jpaExecutor);
+    ReflectionTestUtils.setField(retriever, "maxAgeHours", 168L);
   }
 
   @Test
@@ -69,7 +73,37 @@ public class NotificationToSendRetrieverTest {
     assertThat(message.getHeaders())
         .containsEntry(RECIPIENT_HEADER, notification.getUserId())
         .containsEntry(IMPORTANT_HEADER, notification.getImportant())
-        .containsEntry(CHANNEL_TO_USE_HEADER, pendingNotification.getChannel());
+        .containsEntry(CHANNEL_TO_USE_HEADER, pendingNotification.getChannel())
+        .containsEntry(NOTIFICATION_ID_HEADER, notification.getId());
+  }
+
+  @Test
+  public void shouldDropPendingNotificationOlderThanMaxAge() {
+    // given
+    ReflectionTestUtils.setField(pendingNotification, "createdDate",
+        ZonedDateTime.now().minusDays(8));
+    given(jpaExecutor.poll()).willReturn(pendingNotification);
+
+    // when
+    Message<Notification> message = retriever.retrieve();
+
+    // then
+    assertThat(message).isNull();
+  }
+
+  @Test
+  public void shouldKeepPendingNotificationYoungerThanMaxAge() {
+    // given
+    ReflectionTestUtils.setField(pendingNotification, "createdDate",
+        ZonedDateTime.now().minusDays(6));
+    given(jpaExecutor.poll()).willReturn(pendingNotification);
+
+    // when
+    Message<Notification> message = retriever.retrieve();
+
+    // then
+    assertThat(message).isNotNull();
+    assertThat(message.getPayload()).isEqualTo(notification);
   }
 
   @Test

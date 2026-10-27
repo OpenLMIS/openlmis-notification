@@ -16,13 +16,18 @@
 package org.openlmis.notification.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.persistence.EntityManager;
+import javax.persistence.PersistenceException;
 import org.junit.Before;
 import org.junit.Test;
 import org.openlmis.notification.domain.Notification;
@@ -33,7 +38,9 @@ import org.openlmis.notification.testutils.PendingNotificationDataBuilder;
 import org.openlmis.notification.util.NotificationDataBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.repository.CrudRepository;
+import org.springframework.test.util.ReflectionTestUtils;
 
+@SuppressWarnings("PMD.TooManyMethods")
 public class PendingNotificationRepositoryIntegrationTest
     extends BaseCrudRepositoryIntegrationTest<PendingNotification, PendingNotificationId> {
 
@@ -93,6 +100,95 @@ public class PendingNotificationRepositoryIntegrationTest
 
     boolean notificationExists = notificationRepository.existsById(notificationId);
     assertThat(notificationExists).isTrue();
+  }
+
+  @Test
+  public void shouldPersistRetryTracking() {
+    PendingNotification pending = pendingNotifications.get(0);
+    ZonedDateTime retryAt = ZonedDateTime.now().plusSeconds(60).truncatedTo(ChronoUnit.MILLIS);
+
+    pending.recordFailedAttempt(retryAt, "x");
+    repository.saveAndFlush(pending);
+    entityManager.clear();
+
+    PendingNotification found = repository.findById(pending.getId()).orElse(null);
+    assertThat(found).isNotNull();
+    assertThat(found.getRetryCount()).isEqualTo(1);
+    assertThat(found.getRetryAt().toInstant()).isEqualTo(retryAt.toInstant());
+    assertThat(found.getLastError()).isEqualTo("x");
+  }
+
+  @Test
+  public void shouldPollOnlyDuePendingNotificationsInDueOrder() {
+    ZonedDateTime now = ZonedDateTime.now();
+    spreadQueueTimes(now);
+    PendingNotification postponed = pendingNotifications.get(0);
+    postponed.recordFailedAttempt(now.plusSeconds(60), "x");
+    repository.saveAndFlush(postponed);
+    entityManager.clear();
+
+    assertThat(findDue(now))
+        .extracting(PendingNotification::getId)
+        .containsExactlyElementsOf(ids(pendingNotifications.subList(1, COUNT)));
+
+    assertThat(findDue(now.plusSeconds(120)))
+        .extracting(PendingNotification::getId)
+        .containsExactlyElementsOf(ids(rotateFirstToLast(pendingNotifications)));
+  }
+
+  @Test
+  public void shouldPollNewPendingNotificationsAheadOfFailingOnes() {
+    ZonedDateTime now = ZonedDateTime.now();
+    spreadQueueTimes(now);
+    PendingNotification failing = pendingNotifications.get(0);
+    failing.recordFailedAttempt(now.minusMinutes(COUNT + 1L), "x");
+    repository.saveAndFlush(failing);
+    entityManager.clear();
+
+    assertThat(findDue(now))
+        .extracting(PendingNotification::getId)
+        .containsExactlyElementsOf(ids(rotateFirstToLast(pendingNotifications)));
+  }
+
+  @Test
+  public void shouldRejectPendingNotificationWithoutCreatedDate() {
+    UUID notificationId = pendingNotifications.get(0).getNotificationId();
+
+    assertThatThrownBy(() -> entityManager
+        .createNativeQuery("INSERT INTO notification.pending_notifications"
+            + " (notificationid, channel, createddate) VALUES (:id, 'SMS', NULL)")
+        .setParameter("id", notificationId)
+        .executeUpdate())
+        .isInstanceOf(PersistenceException.class);
+  }
+
+  // Rows saved back to back can share a millisecond, which would leave their order to the database.
+  private void spreadQueueTimes(ZonedDateTime now) {
+    for (int idx = 0; idx < COUNT; ++idx) {
+      PendingNotification pending = pendingNotifications.get(idx);
+      ZonedDateTime queuedAt = now.minusMinutes(COUNT - idx);
+      ReflectionTestUtils.setField(pending, "createdDate", queuedAt);
+      ReflectionTestUtils.setField(pending, "retryAt", queuedAt);
+      repository.saveAndFlush(pending);
+    }
+  }
+
+  private List<PendingNotification> findDue(ZonedDateTime now) {
+    return entityManager
+        .createNamedQuery(PendingNotification.GET_PENDING_NOTIFICATIONS_NAMED_QUERY,
+            PendingNotification.class)
+        .setParameter(PendingNotification.NOW_PARAMETER, now)
+        .getResultList();
+  }
+
+  private List<PendingNotificationId> ids(List<PendingNotification> list) {
+    return list.stream().map(PendingNotification::getId).collect(Collectors.toList());
+  }
+
+  private List<PendingNotification> rotateFirstToLast(List<PendingNotification> list) {
+    List<PendingNotification> rotated = new ArrayList<>(list.subList(1, list.size()));
+    rotated.add(list.get(0));
+    return rotated;
   }
 
 }

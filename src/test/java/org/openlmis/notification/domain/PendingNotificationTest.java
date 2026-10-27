@@ -15,10 +15,16 @@
 
 package org.openlmis.notification.domain;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.time.Duration;
+import java.time.ZonedDateTime;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import org.junit.Test;
+import org.openlmis.notification.testutils.PendingNotificationDataBuilder;
 import org.openlmis.notification.testutils.ToStringTestUtils;
 import org.openlmis.notification.util.NotificationDataBuilder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 public class PendingNotificationTest {
 
@@ -37,6 +43,45 @@ public class PendingNotificationTest {
   @Test
   public void shouldImplementToString() {
     ToStringTestUtils.verify(PendingNotification.class, new PendingNotification(), "notification");
+  }
+
+  @Test
+  public void shouldBeDueImmediatelyWhenCreated() {
+    PendingNotification pending = new PendingNotificationDataBuilder().build();
+
+    assertThat(pending.getRetryCount()).isZero();
+    assertThat(pending.getRetryAt()).isEqualTo(pending.getCreatedDate());
+    assertThat(pending.getLastError()).isNull();
+  }
+
+  @Test
+  public void shouldRecordFailedAttempt() {
+    PendingNotification pending = new PendingNotificationDataBuilder().build();
+    ZonedDateTime next = ZonedDateTime.now().plusSeconds(60);
+
+    pending.recordFailedAttempt(next, "boom");
+
+    assertThat(pending.getRetryCount()).isEqualTo(1);
+    assertThat(pending.getRetryAt()).isEqualTo(next);
+    assertThat(pending.getLastError()).isEqualTo("boom");
+
+    pending.recordFailedAttempt(next.plusSeconds(120), "boom again");
+
+    assertThat(pending.getRetryCount()).isEqualTo(2);
+    assertThat(pending.getRetryAt()).isEqualTo(next.plusSeconds(120));
+    assertThat(pending.getLastError()).isEqualTo("boom again");
+  }
+
+  @Test
+  public void shouldTellWhetherOlderThanMaxAge() {
+    ZonedDateTime now = ZonedDateTime.now();
+    Duration maxAge = Duration.ofHours(168);
+    PendingNotification old = new PendingNotificationDataBuilder().build();
+    ReflectionTestUtils.setField(old, "createdDate", now.minusDays(8));
+    PendingNotification fresh = new PendingNotificationDataBuilder().build();
+
+    assertThat(old.isOlderThan(maxAge, now)).isTrue();
+    assertThat(fresh.isOlderThan(maxAge, now)).isFalse();
   }
 
 }
