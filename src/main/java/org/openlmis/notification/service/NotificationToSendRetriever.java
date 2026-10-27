@@ -16,6 +16,7 @@
 package org.openlmis.notification.service;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import javax.persistence.EntityManager;
@@ -75,7 +76,7 @@ public class NotificationToSendRetriever {
     PendingNotification pending = (PendingNotification) item;
 
     // The poll has already deleted the row; returning null lets that delete commit.
-    if (pending.isOlderThan(Duration.ofHours(maxAgeHours), ZonedDateTime.now())) {
+    if (pending.isOlderThan(Duration.ofHours(maxAgeHours), ZonedDateTime.now(Clock.systemUTC()))) {
       LOGGER.warn("Dropping notification {} via {}: queued {}, older than {} h,"
               + " {} failed attempts, last error: {}",
           pending.getNotificationId(), pending.getChannel(), pending.getCreatedDate(),
@@ -119,7 +120,7 @@ public class NotificationToSendRetriever {
 
     @Override
     public Object getValue(String paramName) {
-      return ZonedDateTime.now();
+      return ZonedDateTime.now(Clock.systemUTC());
     }
   }
 }
