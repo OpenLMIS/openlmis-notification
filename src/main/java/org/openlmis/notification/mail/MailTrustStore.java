@@ -115,7 +115,7 @@ public class MailTrustStore {
 
       byte[] content = read(KEEP_DEFAULTS);
       if (content != null) {
-        swapIn(content, KEEP_DEFAULTS);
+        swapIn(content, digest(content), KEEP_DEFAULTS);
       }
 
       context = SSLContext.getInstance("TLS");
@@ -136,9 +136,13 @@ public class MailTrustStore {
     // Anything thrown here would silently cancel the scheduled check, so nothing gets out.
     try {
       byte[] content = read(KEEP_CURRENT);
-      if (content != null && !Objects.equals(attemptedDigest, digest(content))) {
+      if (content == null) {
+        return;
+      }
+      String digest = digest(content);
+      if (!Objects.equals(attemptedDigest, digest)) {
         LOGGER.info("SMTP trust store {} changed, reloading", file);
-        swapIn(content, KEEP_CURRENT);
+        swapIn(content, digest, KEEP_CURRENT);
       }
     } catch (RuntimeException exp) {
       LOGGER.error("Unexpected failure while checking the SMTP trust store {}", file, exp);
@@ -194,8 +198,8 @@ public class MailTrustStore {
     }
   }
 
-  private void swapIn(byte[] content, String outcome) {
-    attemptedDigest = digest(content);
+  private void swapIn(byte[] content, String digest, String outcome) {
+    attemptedDigest = digest;
     try {
       List<X509Certificate> certificates = loader.readCertificates(content);
       List<X509Certificate> anchors = new ArrayList<>(defaults);
