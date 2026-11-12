@@ -147,14 +147,17 @@ public class NotificationController {
     Profiler profiler = new Profiler("GET_NOTIFICATIONS");
     profiler.setLogger(XLOGGER);
 
+    NotificationSearchParams searchParams = MapUtils.isEmpty(queryParams)
+        ? null
+        : new NotificationSearchParams(queryParams);
+
+    profiler.start("CHECK_PERMISSION");
+    permissionService.canViewNotifications(null == searchParams ? null : searchParams.getUserId());
+
     profiler.start("FIND_ALL");
-    Page<Notification> page;
-    if (MapUtils.isEmpty(queryParams)) {
-      page = notificationRepository.findAll(pageable);
-    } else {
-      NotificationSearchParams searchParams = new NotificationSearchParams(queryParams);
-      page = notificationRepository.search(searchParams, pageable);
-    }
+    Page<Notification> page = null == searchParams
+        ? notificationRepository.findAll(pageable)
+        : notificationRepository.search(searchParams, pageable);
 
     profiler.start("CREATE_DTOS");
     List<NotificationDto> notificationDtos = page
