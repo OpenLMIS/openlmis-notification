@@ -160,6 +160,24 @@ traits:
                   body:
                       application/json:
                           schema: localizedMessage
+      /batch:
+          delete:
+              is: [ secured ]
+              description: >
+                Delete contact details and email verification tokens of the users with the given
+                ids. Requires the USERS_MANAGE right or a service token.
+              body:
+                  application/json:
+              responses:
+                  200:
+                      headers:
+                          Keep-Alive:
+                  403:
+                      headers:
+                          Keep-Alive:
+                      body:
+                          application/json:
+                              schema: localizedMessage
       /{id}:
           uriParameters:
               id:
