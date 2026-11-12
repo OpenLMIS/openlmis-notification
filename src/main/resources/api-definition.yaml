@@ -84,7 +84,9 @@ traits:
                           schema: localizedMessage
       get:
           is: [ secured, paginated, sorted ]
-          description: Get notifications.
+          description: >
+            Get notifications. A user without the USERS_MANAGE right gets only their own
+            notifications, so must pass their own id as userId.
           queryParameters:
               userId:
                   description: >
@@ -114,6 +116,12 @@ traits:
                   body:
                       application/json:
                           schema: notificationPage
+              403:
+                  headers:
+                      Keep-Alive:
+                  body:
+                      application/json:
+                          schema: localizedMessage
   /userContactDetails:
       displayName: User Contact Details
       get:
