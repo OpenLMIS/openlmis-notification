@@ -1,6 +1,9 @@
 4.5.2-SNAPSHOT (WIP)
 ==================
 
+Improvements:
+* [OLMIS-8456](https://openlmis.atlassian.net/browse/OLMIS-8456): Update demo data of OpenLMIS
+
 Bug fixes:
 * [OLMIS-8380](https://openlmis.atlassian.net/browse/OLMIS-8380): The 400 returned by PUT /api/userContactDetails/{id} when the request changes the email verification status now names the field, instead of showing an unfilled {0} placeholder.
 
