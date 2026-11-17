@@ -4,6 +4,7 @@
 Bug fixes:
 * [OLMIS-8380](https://openlmis.atlassian.net/browse/OLMIS-8380): The 400 returned by PUT /api/userContactDetails/{id} when the request changes the email verification status now names the field, instead of showing an unfilled {0} placeholder.
 * [OLMIS-8437](https://openlmis.atlassian.net/browse/OLMIS-8437): GET /api/notifications requires the USERS_MANAGE right or a service token, except when the userId parameter is the caller's own id. DELETE /api/userContactDetails/batch requires the USERS_MANAGE right or a service token.
+* [OLMIS-8458](https://openlmis.atlassian.net/browse/OLMIS-8458): PUT /api/userContactDetails/{id} (single and batch) and POST /api/userContactDetails/{id}/verifications create the email verification token before they return, so an immediate GET /api/userContactDetails/{id}/verifications returns it. Since 4.0.0 the token was created in the background with the email, and the GET could come back empty. The email is still sent in the background.
 
 4.5.1 / 2026-10-16
 ==================
