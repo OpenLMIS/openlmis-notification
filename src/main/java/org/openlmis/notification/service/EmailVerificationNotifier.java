@@ -15,20 +15,12 @@
 
 package org.openlmis.notification.service;
 
-import static org.openlmis.notification.i18n.MessageKeys.EMAIL_VERIFICATION_EMAIL_BODY;
-import static org.openlmis.notification.i18n.MessageKeys.EMAIL_VERIFICATION_EMAIL_SUBJECT;
-
 import java.time.ZonedDateTime;
 import java.util.Locale;
 import org.openlmis.notification.domain.EmailVerificationToken;
 import org.openlmis.notification.domain.UserContactDetails;
-import org.openlmis.notification.i18n.ExposedMessageSource;
 import org.openlmis.notification.repository.EmailVerificationTokenRepository;
-import org.openlmis.notification.service.referencedata.UserDto;
-import org.openlmis.notification.service.referencedata.UserReferenceDataService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -39,28 +31,19 @@ public class EmailVerificationNotifier {
   private EmailVerificationTokenRepository emailVerificationTokenRepository;
 
   @Autowired
-  private ExposedMessageSource messageSource;
-
-  @Autowired
-  private EmailSender emailSender;
-
-  @Autowired
-  private UserReferenceDataService userReferenceDataService;
-  
-  @Value("${publicUrl}")
-  private String publicUrl;
+  private EmailVerificationSender emailVerificationSender;
 
   /**
-   * Sends email verification notification.
+   * Creates the email verification token, replacing any existing one, and sends the verification
+   * email in the background. The token is saved before this method returns.
    *
    * @param contactDetails the contactDetails whose email is being verified
    * @param emailAddress recipient's new email address
    */
-  @Async
-  public void sendNotification(UserContactDetails contactDetails, String emailAddress, 
+  public void sendNotification(UserContactDetails contactDetails, String emailAddress,
       Locale locale) {
     EmailVerificationToken token = createToken(contactDetails, emailAddress);
-    sendEmail(contactDetails, emailAddress, token, locale);
+    emailVerificationSender.sendEmail(contactDetails, emailAddress, token, locale);
   }
 
   EmailVerificationToken createToken(UserContactDetails contactDetails,
@@ -86,35 +69,6 @@ public class EmailVerificationNotifier {
     token.setEmailAddress(emailAddress);
 
     return emailVerificationTokenRepository.save(token);
-  }
-
-  private void sendEmail(UserContactDetails contactDetails, String email,
-      EmailVerificationToken token, Locale locale) {
-    UserDto referenceDataUser = userReferenceDataService
-        .findOne(contactDetails.getReferenceDataUserId());
-
-    String[] bodyMsgArgs = {
-        referenceDataUser.getFirstName(),
-        referenceDataUser.getLastName(),
-        getVerificationPath(contactDetails, token)
-    };
-    String[] subjectMsgArgs = {};
-    
-    String subject = messageSource
-        .getMessage(EMAIL_VERIFICATION_EMAIL_SUBJECT, subjectMsgArgs, locale);
-    String body = messageSource
-        .getMessage(EMAIL_VERIFICATION_EMAIL_BODY, bodyMsgArgs, locale);
-
-    emailSender.sendMail(email, subject, body);
-  }
-
-  private String getVerificationPath(UserContactDetails contactDetails,
-      EmailVerificationToken token) {
-    return publicUrl
-        + "/api/userContactDetails/"
-        + contactDetails.getId()
-        + "/verifications/"
-        + token.getId();
   }
 
 }

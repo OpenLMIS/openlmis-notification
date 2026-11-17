@@ -17,14 +17,10 @@ package org.openlmis.notification.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.openlmis.notification.i18n.MessageKeys.EMAIL_VERIFICATION_EMAIL_BODY;
-import static org.openlmis.notification.i18n.MessageKeys.EMAIL_VERIFICATION_EMAIL_SUBJECT;
 
 import java.util.Locale;
-import java.util.UUID;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,12 +31,8 @@ import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 import org.openlmis.notification.domain.EmailVerificationToken;
 import org.openlmis.notification.domain.UserContactDetails;
-import org.openlmis.notification.i18n.ExposedMessageSource;
 import org.openlmis.notification.repository.EmailVerificationTokenRepository;
-import org.openlmis.notification.service.referencedata.UserDto;
-import org.openlmis.notification.service.referencedata.UserReferenceDataService;
 import org.openlmis.notification.testutils.SaveAnswer;
-import org.openlmis.notification.testutils.UserDataBuilder;
 import org.openlmis.notification.util.UserContactDetailsDataBuilder;
 import org.springframework.context.i18n.LocaleContextHolder;
 
@@ -48,13 +40,7 @@ import org.springframework.context.i18n.LocaleContextHolder;
 public class EmailVerificationNotifierTest {
 
   @Mock
-  private UserReferenceDataService userReferenceDataService;
-
-  @Mock
-  private EmailSender emailSender;
-
-  @Mock
-  private ExposedMessageSource messageSource;
+  private EmailVerificationSender emailVerificationSender;
 
   @Mock
   private EmailVerificationTokenRepository emailVerificationTokenRepository;
@@ -65,19 +51,11 @@ public class EmailVerificationNotifierTest {
   @Captor
   private ArgumentCaptor<EmailVerificationToken> tokenCaptor;
 
-  private UserDto user = new UserDataBuilder().build();
-  private UserContactDetails userContactDetails = new UserContactDetailsDataBuilder()
-      .withReferenceDataUserId(user.getId())
-      .build();
+  private UserContactDetails userContactDetails = new UserContactDetailsDataBuilder().build();
   private String email = "example@test.org";
 
   @Before
   public void setUp() {
-    when(userReferenceDataService.findOne(any(UUID.class)))
-        .thenReturn(user);
-    when(messageSource.getMessage(anyString(), any(String[].class), any(Locale.class)))
-        .thenAnswer(invocation -> invocation.getArgument(0, String.class));
-
     when(emailVerificationTokenRepository.findOneByUserContactDetails(userContactDetails))
         .thenReturn(null);
     when(emailVerificationTokenRepository.save(any(EmailVerificationToken.class)))
@@ -102,18 +80,21 @@ public class EmailVerificationNotifierTest {
   }
 
   @Test
-  public void shouldSendNotification() {
+  public void shouldCreateTokenAndDelegateEmail() {
+    // given
+    Locale locale = LocaleContextHolder.getLocale();
+
     // when
-    notifier.sendNotification(userContactDetails, email, LocaleContextHolder.getLocale());
+    notifier.sendNotification(userContactDetails, email, locale);
 
     // then
     verify(emailVerificationTokenRepository).save(tokenCaptor.capture());
-    verify(emailSender).sendMail(email,
-        EMAIL_VERIFICATION_EMAIL_SUBJECT, EMAIL_VERIFICATION_EMAIL_BODY);
 
     EmailVerificationToken token = tokenCaptor.getValue();
     assertThat(token.getUserContactDetails()).isEqualTo(userContactDetails);
     assertThat(token.getEmailAddress()).isEqualTo(email);
+
+    verify(emailVerificationSender).sendEmail(userContactDetails, email, token, locale);
   }
 
 }
