@@ -22,6 +22,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.openlmis.notification.i18n.MessageKeys.ERROR_CONSTRAINT;
 import static org.openlmis.notification.i18n.MessageKeys.ERROR_SEND_REQUEST;
+import static org.openlmis.notification.i18n.MessageKeys.ERROR_VERIFICATION_IN_PROGRESS;
 import static org.openlmis.notification.i18n.MessageKeys.PERMISSION_MISSING;
 
 import java.util.Locale;
@@ -147,6 +148,25 @@ public class WebErrorHandlingTest {
 
       testDataIntegrityViolation(cause, entry.getValue());
     }
+  }
+
+  @Test
+  public void shouldHandleConcurrentVerificationTokenForSameUser() {
+    ConstraintViolationException cause = mock(ConstraintViolationException.class);
+    when(cause.getConstraintName())
+        .thenReturn("unq_email_verification_tokens_usercontactdetailsid");
+
+    DataIntegrityViolationException exp = mock(DataIntegrityViolationException.class);
+    when(exp.getCause()).thenReturn(cause);
+    String rawMessage = "could not execute statement";
+    lenient().when(exp.getMessage()).thenReturn(rawMessage);
+    lenient().when(messageSource.getMessage(rawMessage, new Object[0], ENGLISH_LOCALE))
+        .thenReturn(rawMessage);
+
+    mockMessage(ERROR_VERIFICATION_IN_PROGRESS);
+    Message.LocalizedMessage message = errorHandler.handleDataIntegrityViolation(exp);
+
+    assertMessage(message, ERROR_VERIFICATION_IN_PROGRESS);
   }
 
   @Test

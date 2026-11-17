@@ -111,6 +111,9 @@ public abstract class MessageKeys {
   public static final String ERROR_USER_HAS_NO_EMAIL =
       join(ERROR_PREFIX, VERIFICATIONS, EMAIL, "null");
 
+  public static final String ERROR_VERIFICATION_IN_PROGRESS =
+      join(ERROR_PREFIX, VERIFICATIONS, "inProgress");
+
   public static final String ERROR_SEND_MAIL_FAILURE =
       join(ERROR_PREFIX, "sendMail", "failure");
 
