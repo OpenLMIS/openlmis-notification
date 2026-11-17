@@ -298,6 +298,7 @@ public class UserContactDetailsController {
   @DeleteMapping(value = "/userContactDetails/batch")
   @ResponseStatus(HttpStatus.OK)
   public void deleteContactDetailsByUserIds(@RequestBody Set<UUID> userIds) {
+    permissionService.canManageUserContactDetails(null);
     userContactDetailsService.deleteByUserIds(userIds);
     emailVerificationTokenService.deleteByUserIds(userIds);
   }

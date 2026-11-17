@@ -728,11 +728,33 @@ public class UserContactDetailsControllerIntegrationTest extends BaseWebIntegrat
     Set<UUID> idsToRemove = new HashSet<>();
     idsToRemove.add(UUID.randomUUID());
     idsToRemove.add(UUID.randomUUID());
+    willDoNothing().given(permissionService).canManageUserContactDetails(null);
 
-    delete(idsToRemove);
+    delete(idsToRemove)
+        .then()
+        .statusCode(200);
 
+    assertThat(RAML_ASSERT_MESSAGE, restAssured.getLastReport(), RamlMatchers.hasNoViolations());
+    verify(permissionService).canManageUserContactDetails(null);
     verify(emailVerificationTokenRepository).deleteByUserIds(idsToRemove);
     verify(userContactDetailsRepository).deleteByUserIds(idsToRemove);
+  }
+
+  @Test
+  public void shouldReturnForbiddenIfUserHasNoRightToDeleteContactDetails() {
+    Set<UUID> idsToRemove = new HashSet<>();
+    idsToRemove.add(UUID.randomUUID());
+    willThrow(new MissingPermissionException("test"))
+        .given(permissionService).canManageUserContactDetails(null);
+
+    delete(idsToRemove)
+        .then()
+        .statusCode(403)
+        .body(MESSAGE_KEY, is(PERMISSION_MISSING));
+
+    assertThat(RAML_ASSERT_MESSAGE, restAssured.getLastReport(), RamlMatchers.hasNoViolations());
+    verify(emailVerificationTokenRepository, never()).deleteByUserIds(anySetOf(UUID.class));
+    verify(userContactDetailsRepository, never()).deleteByUserIds(anySetOf(UUID.class));
   }
 
   private Response put(UserContactDetailsDto dto, UUID referenceDataUserId) {

@@ -20,8 +20,13 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willDoNothing;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.openlmis.notification.i18n.MessageKeys.ERROR_NOTIFICATION_REQUEST_FIELD_REQUIRED;
+import static org.openlmis.notification.i18n.MessageKeys.PERMISSION_MISSING;
 import static org.openlmis.notification.i18n.MessageKeys.PERMISSION_MISSING_GENERIC;
 import static org.springframework.http.HttpHeaders.CONTENT_TYPE;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
@@ -44,6 +49,7 @@ import org.openlmis.notification.util.NotificationDataBuilder;
 import org.openlmis.notification.util.Pagination;
 import org.openlmis.notification.util.UserContactDetailsDataBuilder;
 import org.openlmis.notification.web.BaseWebIntegrationTest;
+import org.openlmis.notification.web.MissingPermissionException;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -131,6 +137,7 @@ public class NotificationControllerIntegrationTest extends BaseWebIntegrationTes
   
   @Test
   public void getCollectionShouldGetPageOfNotifications() {
+    willDoNothing().given(permissionService).canViewNotifications(null);
     given(notificationRepository.findAll(any(Pageable.class)))
         .willReturn(Pagination.getPage(singletonList(notification), pageRequest));
 
@@ -144,6 +151,61 @@ public class NotificationControllerIntegrationTest extends BaseWebIntegrationTes
 
     assertEquals(1, notificationPage.getContent().size());
     assertThat(RAML_ASSERT_MESSAGE, restAssured.getLastReport(), RamlMatchers.hasNoViolations());
+    verify(permissionService).canViewNotifications(null);
+  }
+
+  @Test
+  public void getCollectionShouldGetPageOfNotificationsForGivenUser() {
+    willDoNothing().given(permissionService).canViewNotifications(USER_ID);
+    given(notificationRepository.search(any(NotificationSearchParams.class), any(Pageable.class)))
+        .willReturn(Pagination.getPage(singletonList(notification), pageRequest));
+
+    PageDto notificationPage = startRequest(USER_ACCESS_TOKEN_HEADER)
+        .queryParam(NotificationSearchParams.USER_ID, USER_ID)
+        .when()
+        .get(RESOURCE_URL)
+        .then()
+        .statusCode(200)
+        .extract()
+        .as(PageDto.class);
+
+    assertEquals(1, notificationPage.getContent().size());
+    assertThat(RAML_ASSERT_MESSAGE, restAssured.getLastReport(), RamlMatchers.hasNoViolations());
+    verify(permissionService).canViewNotifications(USER_ID);
+  }
+
+  @Test
+  public void getCollectionShouldReturnForbiddenIfUserHasNoRightToGetAllNotifications() {
+    willThrow(new MissingPermissionException("test"))
+        .given(permissionService).canViewNotifications(null);
+
+    startRequest(USER_ACCESS_TOKEN_HEADER)
+        .when()
+        .get(RESOURCE_URL)
+        .then()
+        .statusCode(403)
+        .body(MESSAGE_KEY, is(PERMISSION_MISSING));
+
+    assertThat(RAML_ASSERT_MESSAGE, restAssured.getLastReport(), RamlMatchers.hasNoViolations());
+    verify(notificationRepository, never()).findAll(any(Pageable.class));
+  }
+
+  @Test
+  public void getCollectionShouldReturnForbiddenIfUserHasNoRightToGetOtherUserNotifications() {
+    willThrow(new MissingPermissionException("test"))
+        .given(permissionService).canViewNotifications(USER_ID);
+
+    startRequest(USER_ACCESS_TOKEN_HEADER)
+        .queryParam(NotificationSearchParams.USER_ID, USER_ID)
+        .when()
+        .get(RESOURCE_URL)
+        .then()
+        .statusCode(403)
+        .body(MESSAGE_KEY, is(PERMISSION_MISSING));
+
+    assertThat(RAML_ASSERT_MESSAGE, restAssured.getLastReport(), RamlMatchers.hasNoViolations());
+    verify(notificationRepository, never())
+        .search(any(NotificationSearchParams.class), any(Pageable.class));
   }
 
   @Test(expected = IllegalArgumentException.class)

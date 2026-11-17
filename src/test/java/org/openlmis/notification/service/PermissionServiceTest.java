@@ -171,6 +171,75 @@ public class PermissionServiceTest {
     permissionService.canSendNotification();
   }
 
+  @Test
+  public void shouldAllowOtherServiceToViewNotifications() {
+    when(securityContext.getAuthentication()).thenReturn(serviceAuthentication);
+
+    permissionService.canViewNotifications(UUID.randomUUID());
+  }
+
+  @Test
+  public void shouldAllowOtherServiceToViewAllNotifications() {
+    when(securityContext.getAuthentication()).thenReturn(serviceAuthentication);
+
+    permissionService.canViewNotifications(null);
+  }
+
+  @Test
+  public void shouldAllowUserWithUsersManageRightToViewNotifications() {
+    when(securityContext.getAuthentication()).thenReturn(userAuthentication);
+    when(authenticationHelper.getCurrentUser()).thenReturn(userDto);
+    when(authenticationHelper.getRight(eq(USERS_MANAGE))).thenReturn(rightDto);
+    when(userReferenceDataService.hasRight(userDto.getId(), rightDto.getId(), null, null, null))
+        .thenReturn(new ResultDto<>(true));
+
+    permissionService.canViewNotifications(UUID.randomUUID());
+  }
+
+  @Test
+  public void shouldAllowUserWithUsersManageRightToViewAllNotifications() {
+    when(securityContext.getAuthentication()).thenReturn(userAuthentication);
+    when(authenticationHelper.getCurrentUser()).thenReturn(userDto);
+    when(authenticationHelper.getRight(eq(USERS_MANAGE))).thenReturn(rightDto);
+    when(userReferenceDataService.hasRight(userDto.getId(), rightDto.getId(), null, null, null))
+        .thenReturn(new ResultDto<>(true));
+
+    permissionService.canViewNotifications(null);
+  }
+
+  @Test
+  public void shouldAllowUserWithoutUsersManageRightToViewOwnNotifications() {
+    when(authenticationHelper.getCurrentUser()).thenReturn(userDto);
+
+    permissionService.canViewNotifications(userDto.getId());
+  }
+
+  @Test
+  public void shouldNotAllowUserWithoutUsersManageRightToViewOtherUserNotifications() {
+    when(securityContext.getAuthentication()).thenReturn(userAuthentication);
+    when(authenticationHelper.getCurrentUser()).thenReturn(userDto);
+    when(authenticationHelper.getRight(eq(USERS_MANAGE))).thenReturn(rightDto);
+    when(userReferenceDataService.hasRight(userDto.getId(), rightDto.getId(), null, null, null))
+        .thenReturn(new ResultDto<>(false));
+
+    expectException();
+
+    permissionService.canViewNotifications(UUID.randomUUID());
+  }
+
+  @Test
+  public void shouldNotAllowUserWithoutUsersManageRightToViewAllNotifications() {
+    when(securityContext.getAuthentication()).thenReturn(userAuthentication);
+    when(authenticationHelper.getCurrentUser()).thenReturn(userDto);
+    when(authenticationHelper.getRight(eq(USERS_MANAGE))).thenReturn(rightDto);
+    when(userReferenceDataService.hasRight(userDto.getId(), rightDto.getId(), null, null, null))
+        .thenReturn(new ResultDto<>(false));
+
+    expectException();
+
+    permissionService.canViewNotifications(null);
+  }
+
   private void expectException() {
     exception.expect(MissingPermissionException.class);
     exception.expect(hasProperty("params", arrayContaining(USERS_MANAGE)));

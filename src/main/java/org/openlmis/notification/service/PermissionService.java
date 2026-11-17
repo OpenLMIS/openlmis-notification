@@ -65,6 +65,18 @@ public class PermissionService {
   }
 
   /**
+   * Checks whether current request has access to viewing notifications of the user with the
+   * given userId. A null userId means notifications of all users.
+   *
+   * @param userId  the reference data user ID, or null
+   */
+  public void canViewNotifications(UUID userId) {
+    if (!isCurrentUser(userId) && hasNoPermission(USERS_MANAGE, true)) {
+      throw new MissingPermissionException(USERS_MANAGE);
+    }
+  }
+
+  /**
    * Checks whether current request has access to sending notification.
    */
   public void canSendNotification() {
