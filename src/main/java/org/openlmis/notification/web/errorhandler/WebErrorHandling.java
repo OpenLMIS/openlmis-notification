@@ -20,7 +20,6 @@ import static org.openlmis.notification.i18n.MessageKeys.ERROR_EMAIL_DUPLICATED;
 import static org.openlmis.notification.i18n.MessageKeys.ERROR_NOTIFICATION_CHANNEL_DUPLICATED;
 import static org.openlmis.notification.i18n.MessageKeys.ERROR_SEND_REQUEST;
 import static org.openlmis.notification.i18n.MessageKeys.ERROR_VERIFICATION_EMAIL_DUPLICATED;
-import static org.openlmis.notification.i18n.MessageKeys.ERROR_VERIFICATION_IN_PROGRESS;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -51,8 +50,6 @@ public class WebErrorHandling extends AbstractErrorHandling {
     CONSTRAINT_MAP.put("unq_contact_details_email", ERROR_EMAIL_DUPLICATED);
     CONSTRAINT_MAP.put(
         "unq_email_verification_tokens_emailaddress", ERROR_VERIFICATION_EMAIL_DUPLICATED);
-    CONSTRAINT_MAP.put(
-        "unq_email_verification_tokens_usercontactdetailsid", ERROR_VERIFICATION_IN_PROGRESS);
     CONSTRAINT_MAP.put(
         "unq_notification_messages_notificationid_channel", ERROR_NOTIFICATION_CHANNEL_DUPLICATED);
   }
