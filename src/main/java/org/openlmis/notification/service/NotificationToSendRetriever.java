@@ -76,7 +76,8 @@ public class NotificationToSendRetriever {
     PendingNotification pending = (PendingNotification) item;
 
     // The poll has already deleted the row; returning null lets that delete commit.
-    if (pending.isOlderThan(Duration.ofHours(maxAgeHours), ZonedDateTime.now(Clock.systemUTC()))) {
+    ZonedDateTime now = ZonedDateTime.now(Clock.systemUTC());
+    if (pending.getRetryCount() > 0 && pending.isOlderThan(Duration.ofHours(maxAgeHours), now)) {
       LOGGER.warn("Dropping notification {} via {}: queued {}, older than {} h,"
               + " {} failed attempts, last error: {}",
           pending.getNotificationId(), pending.getChannel(), pending.getCreatedDate(),

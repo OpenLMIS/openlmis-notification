@@ -257,12 +257,12 @@ public class NotificationRetryIntegrationTest {
   }
 
   @Test
-  public void shouldDropNotificationOlderThanMaxAge() {
+  public void shouldDropFailedNotificationOlderThanMaxAge() {
     // given
     queueNotifications(true);
     transactionTemplate.execute(status -> entityManager
         .createNativeQuery("UPDATE notification.pending_notifications"
-            + " SET createddate = now() - INTERVAL '8 days'"
+            + " SET createddate = now() - INTERVAL '8 days', retrycount = 1"
             + " WHERE notificationid = :notificationId")
         .setParameter("notificationId", notificationIdOf(pendingA))
         .executeUpdate());
@@ -280,6 +280,31 @@ public class NotificationRetryIntegrationTest {
         .filteredOn(event -> event.getFormattedMessage()
             .startsWith("Dropping notification " + notificationIdOf(pendingA)))
         .hasSize(1);
+  }
+
+  @Test
+  public void shouldSendUntriedNotificationOlderThanMaxAge() {
+    // given
+    queueNotifications(true);
+    transactionTemplate.execute(status -> entityManager
+        .createNativeQuery("UPDATE notification.pending_notifications"
+            + " SET createddate = now() - INTERVAL '8 days'"
+            + " WHERE notificationid = :notificationId")
+        .setParameter("notificationId", notificationIdOf(pendingA))
+        .executeUpdate());
+
+    // when
+    adapter.start();
+
+    // then
+    await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+      assertThat(pendingNotificationRepository.existsById(pendingA)).isFalse();
+      verify(emailSender).sendMail(emailOf(userA), SUBJECT, BODY);
+      verify(emailSender).sendMail(emailOf(userB), SUBJECT, BODY);
+    });
+    assertThat(appender.list)
+        .filteredOn(event -> event.getFormattedMessage().startsWith("Dropping notification"))
+        .isEmpty();
   }
 
   @Test

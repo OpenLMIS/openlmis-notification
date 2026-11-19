@@ -78,7 +78,22 @@ public class NotificationToSendRetrieverTest {
   }
 
   @Test
-  public void shouldDropPendingNotificationOlderThanMaxAge() {
+  public void shouldDropFailedPendingNotificationOlderThanMaxAge() {
+    // given
+    ReflectionTestUtils.setField(pendingNotification, "createdDate",
+        ZonedDateTime.now().minusDays(8));
+    pendingNotification.recordFailedAttempt(ZonedDateTime.now(), "smtp down");
+    given(jpaExecutor.poll()).willReturn(pendingNotification);
+
+    // when
+    Message<Notification> message = retriever.retrieve();
+
+    // then
+    assertThat(message).isNull();
+  }
+
+  @Test
+  public void shouldSendUntriedPendingNotificationOlderThanMaxAge() {
     // given
     ReflectionTestUtils.setField(pendingNotification, "createdDate",
         ZonedDateTime.now().minusDays(8));
@@ -88,7 +103,8 @@ public class NotificationToSendRetrieverTest {
     Message<Notification> message = retriever.retrieve();
 
     // then
-    assertThat(message).isNull();
+    assertThat(message).isNotNull();
+    assertThat(message.getPayload()).isEqualTo(notification);
   }
 
   @Test
