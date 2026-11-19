@@ -126,6 +126,24 @@ public class MailTrustStoreSendTest {
   }
 
   @Test
+  public void shouldIgnoreSslTrustOverImplicitTls() throws Exception {
+    // given
+    server = new FakeSmtpServer(true, false, false);
+    final MailProperties properties = mailProperties();
+    properties.getProperties().put("mail.smtp.ssl.trust", "*");
+    final JavaMailSenderImpl sender = new MailConfiguration()
+        .mailSender(properties, SSL, trustStore(resource(OTHER_CERT), PEM, ""));
+
+    // when
+    assertThatThrownBy(() -> send(sender))
+        .isInstanceOf(MailSendException.class)
+        .hasStackTraceContaining(PKIX_FAILURE);
+
+    // then
+    assertThat(server.isMailFromSeen()).isFalse();
+  }
+
+  @Test
   public void shouldRejectUnknownCertificateOverStartTls() throws Exception {
     // given
     server = new FakeSmtpServer(true, false);
@@ -228,6 +246,10 @@ public class MailTrustStoreSendTest {
   }
 
   private JavaMailSenderImpl sender(String security, MailTrustStore trustStore) {
+    return new MailConfiguration().mailSender(mailProperties(), security, trustStore);
+  }
+
+  private MailProperties mailProperties() {
     MailProperties properties = new MailProperties();
     properties.setHost(server.getHost());
     properties.setPort(server.getPort());
@@ -238,7 +260,7 @@ public class MailTrustStoreSendTest {
     properties.getProperties().put("mail.smtp.quitwait", "false");
     properties.getProperties().put("mail.smtp.connectiontimeout", "5000");
     properties.getProperties().put("mail.smtp.timeout", "5000");
-    return new MailConfiguration().mailSender(properties, security, trustStore);
+    return properties;
   }
 
   private MailTrustStore trustStore(byte[] content, String type, String password)

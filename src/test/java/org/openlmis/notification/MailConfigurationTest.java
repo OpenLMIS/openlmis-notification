@@ -43,6 +43,7 @@ public class MailConfigurationTest {
   private static final String STARTTLS_REQUIRED = "mail.smtp.starttls.required";
   private static final String SOCKET_FACTORY = "mail.smtp.socketFactory";
   private static final String SSL_SOCKET_FACTORY = "mail.smtp.ssl.socketFactory";
+  private static final String SSL_TRUST = "mail.smtp.ssl.trust";
   private static final String SSL = "ssl";
   private static final String STARTTLS = "starttls";
   private static final String PEM = "PEM";
@@ -230,6 +231,36 @@ public class MailConfigurationTest {
     assertThat(properties)
         .containsEntry(SSL_SOCKET_FACTORY, factory)
         .containsEntry(SOCKET_FACTORY, factory);
+  }
+
+  @Test
+  public void shouldDropSslTrustWithTrustStore() throws Exception {
+    // given
+    mailProperties.getProperties().put(SSL_TRUST, "*");
+    MailTrustStore trustStore = trustStore();
+
+    // when
+    Properties ssl = new MailConfiguration()
+        .mailSender(mailProperties, SSL, trustStore).getJavaMailProperties();
+    Properties starttls = new MailConfiguration()
+        .mailSender(mailProperties, STARTTLS, trustStore).getJavaMailProperties();
+
+    // then
+    assertThat(ssl).doesNotContainKeys(SSL_TRUST);
+    assertThat(starttls).doesNotContainKeys(SSL_TRUST);
+  }
+
+  @Test
+  public void shouldKeepSslTrustWithoutTrustStore() {
+    // given
+    mailProperties.getProperties().put(SSL_TRUST, "*");
+
+    // when
+    Properties properties = new MailConfiguration()
+        .mailSender(mailProperties, SSL, noTrustStore).getJavaMailProperties();
+
+    // then
+    assertThat(properties).containsEntry(SSL_TRUST, "*");
   }
 
   private MailTrustStore trustStore() throws IOException {
