@@ -73,12 +73,9 @@ public class SmsSender {
       XLOGGER.debug("Send successful, status code was {}, response = {}", responseCode,
           responseBody);
     } catch (RestClientException rce) {
-      NotificationException exception = new ServerException(rce, ERROR_SEND_SMS_FAILURE);
-
-      XLOGGER.throwing(exception);
       profiler.stop().log();
 
-      throw exception;
+      throw new ServerException(rce, ERROR_SEND_SMS_FAILURE);
     }
 
     profiler.stop().log();
