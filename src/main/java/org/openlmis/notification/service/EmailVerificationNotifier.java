@@ -20,8 +20,11 @@ import java.util.Locale;
 import org.openlmis.notification.domain.EmailVerificationToken;
 import org.openlmis.notification.domain.UserContactDetails;
 import org.openlmis.notification.repository.EmailVerificationTokenRepository;
+import org.openlmis.notification.repository.UserContactDetailsRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class EmailVerificationNotifier {
@@ -31,23 +34,35 @@ public class EmailVerificationNotifier {
   private EmailVerificationTokenRepository emailVerificationTokenRepository;
 
   @Autowired
+  private UserContactDetailsRepository userContactDetailsRepository;
+
+  @Autowired
   private EmailVerificationSender emailVerificationSender;
+
+  @Autowired
+  private PlatformTransactionManager transactionManager;
 
   /**
    * Creates the email verification token, replacing any existing one, and sends the verification
-   * email in the background. The token is saved before this method returns.
+   * email in the background. The token is committed before this method returns and before the
+   * email is sent.
    *
    * @param contactDetails the contactDetails whose email is being verified
    * @param emailAddress recipient's new email address
    */
   public void sendNotification(UserContactDetails contactDetails, String emailAddress,
       Locale locale) {
-    EmailVerificationToken token = createToken(contactDetails, emailAddress);
+    EmailVerificationToken token = new TransactionTemplate(transactionManager)
+        .execute(status -> createToken(contactDetails, emailAddress));
     emailVerificationSender.sendEmail(contactDetails, emailAddress, token, locale);
   }
 
   EmailVerificationToken createToken(UserContactDetails contactDetails,
       String emailAddress) {
+    // concurrent requests for the same user wait here, so each one sees the token the previous
+    // one committed instead of deleting or inserting it at the same time
+    userContactDetailsRepository.findOneForUpdate(contactDetails.getReferenceDataUserId());
+
     EmailVerificationToken token = emailVerificationTokenRepository
         .findOneByUserContactDetails(contactDetails);
 

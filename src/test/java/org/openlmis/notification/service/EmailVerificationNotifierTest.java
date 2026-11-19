@@ -17,6 +17,7 @@ package org.openlmis.notification.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -26,15 +27,18 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 import org.openlmis.notification.domain.EmailVerificationToken;
 import org.openlmis.notification.domain.UserContactDetails;
 import org.openlmis.notification.repository.EmailVerificationTokenRepository;
+import org.openlmis.notification.repository.UserContactDetailsRepository;
 import org.openlmis.notification.testutils.SaveAnswer;
 import org.openlmis.notification.util.UserContactDetailsDataBuilder;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.transaction.PlatformTransactionManager;
 
 @RunWith(MockitoJUnitRunner.class)
 public class EmailVerificationNotifierTest {
@@ -44,6 +48,12 @@ public class EmailVerificationNotifierTest {
 
   @Mock
   private EmailVerificationTokenRepository emailVerificationTokenRepository;
+
+  @Mock
+  private UserContactDetailsRepository userContactDetailsRepository;
+
+  @Mock
+  private PlatformTransactionManager transactionManager;
 
   @InjectMocks
   private EmailVerificationNotifier notifier;
@@ -95,6 +105,27 @@ public class EmailVerificationNotifierTest {
     assertThat(token.getEmailAddress()).isEqualTo(email);
 
     verify(emailVerificationSender).sendEmail(userContactDetails, email, token, locale);
+  }
+
+  @Test
+  public void shouldLockContactDetailsAndSendEmailAfterCommit() {
+    // given
+    Locale locale = LocaleContextHolder.getLocale();
+    InOrder inOrder = inOrder(userContactDetailsRepository, emailVerificationTokenRepository,
+        transactionManager, emailVerificationSender);
+
+    // when
+    notifier.sendNotification(userContactDetails, email, locale);
+
+    // then
+    inOrder.verify(userContactDetailsRepository)
+        .findOneForUpdate(userContactDetails.getReferenceDataUserId());
+    inOrder.verify(emailVerificationTokenRepository)
+        .findOneByUserContactDetails(userContactDetails);
+    inOrder.verify(emailVerificationTokenRepository).save(any(EmailVerificationToken.class));
+    inOrder.verify(transactionManager).commit(any());
+    inOrder.verify(emailVerificationSender).sendEmail(any(UserContactDetails.class),
+        any(String.class), any(EmailVerificationToken.class), any(Locale.class));
   }
 
 }

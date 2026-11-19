@@ -16,6 +16,7 @@
 package org.openlmis.notification.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.BDDMockito.given;
@@ -25,12 +26,17 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.openlmis.notification.i18n.MessageKeys.ERROR_SEND_MAIL_FAILURE;
 
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.assertj.core.util.Lists;
@@ -57,10 +63,13 @@ import org.springframework.test.context.junit4.SpringRunner;
 @ActiveProfiles({"test", "test-run"})
 @RunWith(SpringRunner.class)
 @SpringBootTest(properties = {"notificationToSend.autoStartup=false"})
+@SuppressWarnings("PMD.TooManyMethods")
 public class EmailVerificationNotifierIntegrationTest {
 
   private static final String NEW_EMAIL = "verification-new@openlmis.org";
   private static final String TAKEN_EMAIL = "verification-taken@openlmis.org";
+  private static final String FIRST_EMAIL = "verification-first@openlmis.org";
+  private static final String SECOND_EMAIL = "verification-second@openlmis.org";
   private static final long TIMEOUT_SECONDS = 10;
 
   @MockBean
@@ -176,6 +185,50 @@ public class EmailVerificationNotifierIntegrationTest {
     assertThat(token.getEmailAddress()).isEqualTo(NEW_EMAIL);
     await().atMost(TIMEOUT_SECONDS, TimeUnit.SECONDS).untilAsserted(() ->
         verify(emailSender).sendMail(eq(NEW_EMAIL), anyString(), anyString()));
+  }
+
+  @Test
+  public void shouldReplaceTokenForConcurrentRequestsOfSameUser() throws Exception {
+    tokenRepository.save(new EmailVerificationTokenDataBuilder()
+        .withoutId()
+        .withContactDetails(contactDetails)
+        .build());
+
+    assertConcurrentNotificationsSucceed();
+  }
+
+  @Test
+  public void shouldCreateTokenForConcurrentRequestsOfSameUser() throws Exception {
+    assertConcurrentNotificationsSucceed();
+  }
+
+  private void assertConcurrentNotificationsSucceed() throws Exception {
+    CyclicBarrier barrier = new CyclicBarrier(2);
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+    try {
+      Future<?> first = executor.submit(() -> sendNotificationAfter(barrier, FIRST_EMAIL));
+      Future<?> second = executor.submit(() -> sendNotificationAfter(barrier, SECOND_EMAIL));
+
+      assertThatCode(() -> first.get(TIMEOUT_SECONDS, TimeUnit.SECONDS))
+          .doesNotThrowAnyException();
+      assertThatCode(() -> second.get(TIMEOUT_SECONDS, TimeUnit.SECONDS))
+          .doesNotThrowAnyException();
+    } finally {
+      executor.shutdownNow();
+    }
+
+    EmailVerificationToken token = tokenRepository.findOneByUserContactDetails(contactDetails);
+    assertThat(token).isNotNull();
+    assertThat(token.getEmailAddress()).isIn(FIRST_EMAIL, SECOND_EMAIL);
+    await().atMost(TIMEOUT_SECONDS, TimeUnit.SECONDS).untilAsserted(() ->
+        verify(emailSender, times(2)).sendMail(anyString(), anyString(), anyString()));
+  }
+
+  private Void sendNotificationAfter(CyclicBarrier barrier, String emailAddress)
+      throws Exception {
+    barrier.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    notifier.sendNotification(contactDetails, emailAddress, Locale.ENGLISH);
+    return null;
   }
 
   private UserContactDetails saveContactDetails() {
