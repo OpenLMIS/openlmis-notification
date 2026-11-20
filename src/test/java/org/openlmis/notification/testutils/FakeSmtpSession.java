@@ -53,12 +53,17 @@ class FakeSmtpSession {
     this.offerAuth = false;
   }
 
-  FakeSmtpSession(Socket socket, SSLContext sslContext, boolean offerStartTls,
-      boolean offerAuth) throws IOException {
+  FakeSmtpSession(Socket socket, SSLContext sslContext, boolean implicitTls,
+      boolean offerStartTls, boolean offerAuth) throws IOException {
     this.sslContext = sslContext;
     this.offerStartTls = offerStartTls;
     this.offerAuth = offerAuth;
-    use(socket);
+    if (implicitTls) {
+      use(handshake(socket));
+      tls = true;
+    } else {
+      use(socket);
+    }
   }
 
   boolean isEhloSeen() {
@@ -127,12 +132,16 @@ class FakeSmtpSession {
       return;
     }
     reply("220 go ahead");
+    use(handshake(socket));
+    tls = true;
+  }
+
+  private SSLSocket handshake(Socket plain) throws IOException {
     SSLSocket sslSocket = (SSLSocket) sslContext.getSocketFactory()
-        .createSocket(socket, socket.getInetAddress().getHostAddress(), socket.getPort(), true);
+        .createSocket(plain, plain.getInetAddress().getHostAddress(), plain.getPort(), true);
     sslSocket.setUseClientMode(false);
     sslSocket.startHandshake();
-    use(sslSocket);
-    tls = true;
+    return sslSocket;
   }
 
   private void auth(String command) throws IOException {
