@@ -18,6 +18,9 @@ package org.openlmis.notification;
 import java.util.Properties;
 import javax.net.ssl.SSLSocketFactory;
 import org.apache.commons.lang3.StringUtils;
+import org.openlmis.notification.mail.MailTrustStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.mail.MailProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -34,19 +37,25 @@ import org.springframework.mail.javamail.JavaMailSenderImpl;
 public class MailConfiguration {
 
   private static final String SOCKET_FACTORY_CLASS = "mail.smtp.socketFactory.class";
+  private static final String SOCKET_FACTORY = "mail.smtp.socketFactory";
+  private static final String SSL_SOCKET_FACTORY = "mail.smtp.ssl.socketFactory";
   private static final String SOCKET_FACTORY_FALLBACK = "mail.smtp.socketFactory.fallback";
   private static final String STARTTLS_ENABLE = "mail.smtp.starttls.enable";
   private static final String STARTTLS_REQUIRED = "mail.smtp.starttls.required";
+  private static final String SSL_TRUST = "mail.smtp.ssl.trust";
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(MailConfiguration.class);
 
   /**
    * Builds the sender from the spring.mail properties, as Spring Boot does, plus the JavaMail
    * properties of the given connection security.
    *
    * @param security ssl (implicit TLS) or starttls (plain connection upgraded with STARTTLS)
+   * @param trustStore certificates trusted for SMTP in addition to the JVM default ones
    */
   @Bean
   public JavaMailSenderImpl mailSender(MailProperties properties,
-      @Value("${email.smtp.security}") String security) {
+      @Value("${email.smtp.security}") String security, MailTrustStore trustStore) {
     JavaMailSenderImpl sender = new JavaMailSenderImpl();
     sender.setHost(properties.getHost());
     if (properties.getPort() != null) {
@@ -62,6 +71,8 @@ public class MailConfiguration {
     Properties javaMail = new Properties();
     javaMail.putAll(properties.getProperties());
     applySecurity(javaMail, SmtpSecurity.fromValue(security));
+    trustStore.getSocketFactory()
+        .ifPresent(factory -> applyTrustStore(javaMail, factory));
     sender.setJavaMailProperties(javaMail);
     return sender;
   }
@@ -75,6 +86,21 @@ public class MailConfiguration {
       // Defaults only: an explicit spring.mail.properties value, even a blank one, still wins.
       javaMail.putIfAbsent(SOCKET_FACTORY_CLASS, SSLSocketFactory.class.getName());
       javaMail.putIfAbsent(SOCKET_FACTORY_FALLBACK, "false");
+    }
+  }
+
+  static void applyTrustStore(Properties javaMail, SSLSocketFactory factory) {
+    // JavaMail checks it before the factory on a connection that starts with TLS, so it would
+    // replace the trust store there.
+    if (javaMail.remove(SSL_TRUST) != null) {
+      LOGGER.warn("{} is ignored because MAIL_TRUSTSTORE_PATH is set", SSL_TRUST);
+    }
+    // Used for the STARTTLS upgrade.
+    javaMail.put(SSL_SOCKET_FACTORY, factory);
+    // JavaMail prefers a factory instance to mail.smtp.socketFactory.class, so a connection that
+    // starts with TLS uses it too. Without that class the connection starts plain.
+    if (StringUtils.isNotBlank(javaMail.getProperty(SOCKET_FACTORY_CLASS))) {
+      javaMail.put(SOCKET_FACTORY, factory);
     }
   }
 
